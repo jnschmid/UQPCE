@@ -32,6 +32,7 @@ jobs:
             PYYAML: '6.0.2'
             OPENMDAO: 'latest'
             MPI4PY: '3.1.4'
+            OPTIONAL: '[docs]'
             PUBLISH_DOCS: 1
 
           # # make sure the latest versions of things don't break the docs
