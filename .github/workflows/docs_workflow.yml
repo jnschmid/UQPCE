@@ -109,7 +109,7 @@ jobs:
           echo "============================================================="
           echo "Install mpi4py"
           echo "============================================================="
-          pip install mpi4py==${{ matrix.MPI4PY }}
+          conda install mpi4py==${{ matrix.MPI4PY }} -q -y
 
       - name: Install UQPCE
         shell: bash -l {0}
