@@ -6,4 +6,4 @@ try:
     import examples.paraboloid.paraboloid.paraboloid as paraboloid
     from uqpce.mdao import interface
 except:
-    pass # openmdao not installed, which is fine if analysis-only is desired
+    ImportError # openmdao not installed, which is fine if analysis-only is desired
