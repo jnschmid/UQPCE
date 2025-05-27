@@ -42,7 +42,7 @@ all = [
 
 docs = [
     "jupyter",
-    "jupyter-book"
+    "jupyter-book==0.15.1"
 ]
 
 [tool.hatch.version]
