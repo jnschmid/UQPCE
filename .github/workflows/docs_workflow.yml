@@ -118,7 +118,7 @@ jobs:
           echo "============================================================="
           echo "Install UQPCE"
           echo "============================================================="
-          pip install .
+          pip install .${{ matrix.OPTIONAL }}
 
       - name: Display environment info
         id: env_info
