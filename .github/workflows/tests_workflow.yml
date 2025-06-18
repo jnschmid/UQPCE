@@ -5,7 +5,7 @@ name: UQPCE Tests
 on:
   # Trigger on push, pull request
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
 
