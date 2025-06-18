@@ -5,12 +5,22 @@ name: UQPCE Tests
 on:
   # Trigger on push, pull request
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
     branches: [ main, develop ]
 
   # Trigger via workflow_dispatch event
   workflow_dispatch:
+
+    inputs:
+
+      run_name:
+        type: string
+        description: 'Name of workflow run as it will appear under Actions tab:'
+        required: false
+        default: ""
+
+run-name:  ${{ inputs.run_name }}
 
 jobs:
 
