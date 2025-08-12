@@ -11,7 +11,8 @@ import numpy as np
 
 from uqpce.pce.variables.continuous import (
     ContinuousVariable, UniformVariable, NormalVariable, BetaVariable,
-    ExponentialVariable, GammaVariable, EpistemicVariable, LognormalVariable
+    ExponentialVariable, GammaVariable, EpistemicVariable, LognormalVariable,
+    GaussianMixtureVariable
 )
 from uqpce.pce.enums import UncertaintyType
 
@@ -1921,6 +1922,368 @@ class TestEpistemicVariable(unittest.TestCase):
     def test(self):
         self.assertTrue(self.var.type == UncertaintyType.EPISTEMIC)
 
+class TestGaussianMixtureVariable(unittest.TestCase):
+
+    def setUp(self):
+        
+        # Two-component mixture
+        self.weights = [0.3, 0.7]
+        self.means = [1.0, 5.0]
+        self.stdevs = [0.5, 1.0]
+        
+        order = 5
+        samp_size = 5000
+        
+        self.gmm_var = GaussianMixtureVariable(
+            self.weights, self.means, self.stdevs, order=order
+        )
+        
+        # Generate some test samples
+        self.gmm_var.vals = self.gmm_var.generate_samples(samp_size)
+        self.gmm_var.standardize('vals', 'std_vals')
+        self.gmm_warn = self.gmm_var.check_distribution(self.gmm_var.vals)
+        
+    def test_initialization(self):
+        """
+        Testing that GaussianMixtureVariable initializes correctly.
+        """
+        # Check that weights are normalized
+        self.assertTrue(
+            np.isclose(np.sum(self.gmm_var.weights), 1.0),
+            msg='GaussianMixtureVariable weights do not sum to 1'
+        )
+        
+        # Check that number of components is correct
+        self.assertEqual(
+            self.gmm_var.n_components, 2,
+            msg='GaussianMixtureVariable n_components is not correct'
+        )
+        
+        # Check that bounds are set appropriately
+        bounds_factor = 4
+        expected_low = float(np.min(self.means) - bounds_factor * np.max(self.stdevs))
+        expected_high = float(np.max(self.means) + bounds_factor * np.max(self.stdevs))
+        
+        self.assertTrue(
+            np.isclose(self.gmm_var.interval_low, expected_low),
+            msg='GaussianMixtureVariable interval_low is not set correctly'
+        )
+        
+        self.assertTrue(
+            np.isclose(self.gmm_var.interval_high, expected_high),
+            msg='GaussianMixtureVariable interval_high is not set correctly'
+        )
+        
+    def test_weight_normalization(self):
+        """
+        Testing that weights are automatically normalized if they don't sum to 1.
+        """
+        unnormalized_weights = [1.0, 2.0, 1.0]
+        means = [0.0, 2.0, 4.0]
+        stdevs = [0.5, 0.5, 0.5]
+        
+        gmm_var_unnorm = GaussianMixtureVariable(
+            unnormalized_weights, means, stdevs, order=3
+        )
+        
+        # Check that weights sum to 1 after normalization
+        self.assertTrue(
+            np.isclose(np.sum(gmm_var_unnorm.weights), 1.0),
+            msg='GaussianMixtureVariable weight normalization failed'
+        )
+        
+        # Check that relative proportions are maintained
+        expected_weights = np.array([0.25, 0.5, 0.25])
+        self.assertTrue(
+            np.allclose(gmm_var_unnorm.weights, expected_weights),
+            msg='GaussianMixtureVariable weight normalization proportions incorrect'
+        )
+        
+    def test_standardize(self):
+        """
+        Testing the GaussianMixtureVariable standardize method.
+        """
+        # Check that standardized values exist
+        self.assertTrue(
+            hasattr(self.gmm_var, 'std_vals'),
+            msg='GaussianMixtureVariable standardize did not create std_vals'
+        )
+        
+        # Check that standardized values are in expected range
+        mean = (self.gmm_var.interval_high + self.gmm_var.interval_low) / 2
+        stdev = (self.gmm_var.interval_high - self.gmm_var.interval_low) / 2
+        
+        standardized = (self.gmm_var.vals - mean) / stdev
+        
+        self.assertTrue(
+            np.allclose(self.gmm_var.std_vals, standardized),
+            msg='GaussianMixtureVariable standardize is not correct'
+        )
+        
+    def test_standardize_points(self):
+        """
+        Testing the GaussianMixtureVariable standardize_points method.
+        """
+        test_points = np.array([0.0, 2.0, 4.0, 6.0])
+        
+        standardized = self.gmm_var.standardize_points(test_points)
+        
+        # Manually calculate expected standardization
+        mean = (self.gmm_var.interval_high + self.gmm_var.interval_low) / 2
+        stdev = (self.gmm_var.interval_high - self.gmm_var.interval_low) / 2
+        expected = (test_points - mean) / stdev
+        
+        self.assertTrue(
+            np.allclose(standardized, expected),
+            msg='GaussianMixtureVariable standardize_points is not correct'
+        )
+        
+    def test_unstandardize_points(self):
+        """
+        Testing the GaussianMixtureVariable unstandardize_points method.
+        """
+        standardized_points = np.array([-1.0, -0.5, 0.0, 0.5, 1.0])
+        
+        unstandardized = self.gmm_var.unstandardize_points(standardized_points)
+        
+        # Manually calculate expected unstandardization
+        shift = (self.gmm_var.interval_high + self.gmm_var.interval_low) / 2
+        factor = (self.gmm_var.interval_high - self.gmm_var.interval_low) / 2
+        expected = (standardized_points * factor) + shift
+        
+        self.assertTrue(
+            np.allclose(unstandardized, expected),
+            msg='GaussianMixtureVariable unstandardize_points is not correct'
+        )
+        
+        # Test round-trip: standardize then unstandardize
+        original_points = np.array([1.0, 3.0, 5.0])
+        std_points = self.gmm_var.standardize_points(original_points)
+        recovered_points = self.gmm_var.unstandardize_points(std_points)
+        
+        self.assertTrue(
+            np.allclose(original_points, recovered_points),
+            msg='GaussianMixtureVariable standardize/unstandardize round-trip failed'
+        )
+        
+    def test_generate_samples(self):
+        """
+        Testing the GaussianMixtureVariable generate_samples method.
+        """
+        n_samples = 10000
+        samples = self.gmm_var.generate_samples(n_samples)
+        
+        # Check that correct number of samples is generated
+        self.assertEqual(
+            len(samples), n_samples,
+            msg='GaussianMixtureVariable generate_samples returned wrong number of samples'
+        )
+        
+        # Check that samples are within bounds
+        self.assertTrue(
+            np.all(samples >= self.gmm_var.interval_low),
+            msg='GaussianMixtureVariable generate_samples produced values below interval_low'
+        )
+        
+        self.assertTrue(
+            np.all(samples <= self.gmm_var.interval_high),
+            msg='GaussianMixtureVariable generate_samples produced values above interval_high'
+        )
+        
+        # Test standardized sampling
+        std_samples = self.gmm_var.generate_samples(n_samples, standardize=True)
+        
+        # Standardized samples should be roughly in [-1, 1] range
+        self.assertTrue(
+            np.abs(np.mean(std_samples)) < 0.5,
+            msg='GaussianMixtureVariable standardized samples have incorrect mean'
+        )
+        
+    def test_cdf_sample(self):
+        """
+        Testing the GaussianMixtureVariable cdf_sample method.
+        """
+        cdf_values = np.array([0.1, 0.25, 0.5, 0.75, 0.9])
+        samples = self.gmm_var.cdf_sample(cdf_values)
+        
+        # Check that samples are within bounds
+        self.assertTrue(
+            np.all(samples >= self.gmm_var.interval_low),
+            msg='GaussianMixtureVariable cdf_sample produced values below interval_low'
+        )
+        
+        self.assertTrue(
+            np.all(samples <= self.gmm_var.interval_high),
+            msg='GaussianMixtureVariable cdf_sample produced values above interval_high'
+        )
+        
+        # Check that correct number of samples is returned
+        self.assertEqual(
+            len(samples), len(cdf_values),
+            msg='GaussianMixtureVariable cdf_sample returned wrong number of samples'
+        )
+        
+    def test_resample(self):
+        """
+        Testing the GaussianMixtureVariable resample method.
+        """
+        n_samples = 1000
+        resampled = self.gmm_var.resample(n_samples)
+        
+        # Check that correct number of samples is generated
+        self.assertEqual(
+            len(resampled), n_samples,
+            msg='GaussianMixtureVariable resample returned wrong number of samples'
+        )
+        
+        # Resampled values should be standardized
+        # Check they are roughly in expected standardized range
+        self.assertTrue(
+            np.abs(np.mean(resampled)) < 0.5,
+            msg='GaussianMixtureVariable resample did not produce standardized values'
+        )
+        
+    def test_check_distribution(self):
+        """
+        Testing the GaussianMixtureVariable check_distribution method.
+        """
+        # Test with values within bounds
+        good_vals = np.array([0.0, 2.0, 4.0, 6.0])
+        warn = self.gmm_var.check_distribution(good_vals)
+        
+        self.assertIsNone(
+            warn,
+            msg='GaussianMixtureVariable check_distribution raised warning for valid values'
+        )
+        
+        # Test with extreme values (should trigger warning)
+        extreme_vals = np.array([-10.0, 20.0])
+        warn = self.gmm_var.check_distribution(extreme_vals)
+        
+        # Should return -1 for extreme values
+        self.assertEqual(
+            warn, -1,
+            msg='GaussianMixtureVariable check_distribution did not warn for extreme values'
+        )
+        
+    def test_check_num_string(self):
+        """
+        Testing the GaussianMixtureVariable check_num_string method.
+        """
+        # Create GMM with string values containing 'pi'
+        weights = [0.5, 0.5]
+        means = ['pi', '-pi']
+        stdevs = ['pi/2', 'pi/4']
+        
+        gmm_pi = GaussianMixtureVariable(
+            weights, means, stdevs, order=3
+        )
+        
+        # Check that pi strings were converted
+        self.assertTrue(
+            np.isclose(gmm_pi.means[0], np.pi),
+            msg='GaussianMixtureVariable check_num_string did not convert pi in means'
+        )
+        
+        self.assertTrue(
+            np.isclose(gmm_pi.means[1], -np.pi),
+            msg='GaussianMixtureVariable check_num_string did not convert -pi in means'
+        )
+        
+        self.assertTrue(
+            np.isclose(gmm_pi.stdevs[0], np.pi/2),
+            msg='GaussianMixtureVariable check_num_string did not convert pi/2 in stdevs'
+        )
+        
+        self.assertTrue(
+            np.isclose(gmm_pi.stdevs[1], np.pi/4),
+            msg='GaussianMixtureVariable check_num_string did not convert pi/4 in stdevs'
+        )
+        
+    def test_get_mean(self):
+        """
+        Testing the GaussianMixtureVariable get_mean method.
+        """
+        # Calculate expected mean
+        expected_mean = float(np.sum(self.gmm_var.weights * self.gmm_var.means))
+        calculated_mean = self.gmm_var.get_mean()
+        
+        self.assertTrue(
+            np.isclose(expected_mean, calculated_mean),
+            msg='GaussianMixtureVariable get_mean is not correct'
+        )
+        
+        # Compare with empirical mean from large sample
+        n_samples = 100000
+        samples = self.gmm_var.generate_samples(n_samples)
+        empirical_mean = np.mean(samples)
+        
+        self.assertTrue(
+            np.abs(calculated_mean - empirical_mean) < 0.1,
+            msg='GaussianMixtureVariable get_mean does not match empirical mean'
+        )
+        
+    def test_get_resamp_vals(self):
+        """
+        Testing the GaussianMixtureVariable get_resamp_vals method.
+        """
+        n_samples = 1000
+        resampled = self.gmm_var.get_resamp_vals(n_samples)
+        
+        # Check that correct number of samples is generated
+        self.assertEqual(
+            len(resampled), n_samples,
+            msg='GaussianMixtureVariable get_resamp_vals returned wrong number of samples'
+        )
+        
+        # Check that samples are within bounds
+        self.assertTrue(
+            np.all(resampled >= self.gmm_var.interval_low),
+            msg='GaussianMixtureVariable get_resamp_vals produced values below interval_low'
+        )
+        
+        self.assertTrue(
+            np.all(resampled <= self.gmm_var.interval_high),
+            msg='GaussianMixtureVariable get_resamp_vals produced values above interval_high'
+        )
+        
+    def test_multi_component_mixture(self):
+        """
+        Testing GaussianMixtureVariable with more than 2 components.
+        """
+        # Three-component mixture
+        weights = [0.2, 0.5, 0.3]
+        means = [-2.0, 0.0, 3.0]
+        stdevs = [0.5, 1.0, 0.7]
+        
+        gmm_3comp = GaussianMixtureVariable(
+            weights, means, stdevs, order=4
+        )
+        
+        # Check initialization
+        self.assertEqual(
+            gmm_3comp.n_components, 3,
+            msg='GaussianMixtureVariable with 3 components failed'
+        )
+        
+        # Check mean calculation
+        expected_mean = float(np.sum(np.array(weights) * np.array(means)))
+        calculated_mean = gmm_3comp.get_mean()
+        
+        self.assertTrue(
+            np.isclose(expected_mean, calculated_mean),
+            msg='GaussianMixtureVariable get_mean incorrect for 3 components'
+        )
+        
+        # Test sample generation
+        samples = gmm_3comp.generate_samples(5000)
+        
+        # Empirical mean should be close to theoretical mean
+        empirical_mean = np.mean(samples)
+        self.assertTrue(
+            np.abs(empirical_mean - expected_mean) < 0.2,
+            msg='GaussianMixtureVariable sampling incorrect for 3 components'
+        )
 
 if __name__ == '__main__':
 

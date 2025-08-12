@@ -22,7 +22,7 @@ import numpy as np
 from uqpce.pce.variables.variable import Variable
 from uqpce.pce.variables.continuous import (
     NormalVariable, UniformVariable, BetaVariable, ExponentialVariable, 
-    GammaVariable, LognormalVariable, EpistemicVariable
+    GammaVariable, LognormalVariable, EpistemicVariable, GaussianMixtureVariable
 )
 from uqpce.pce.variables.discrete import (
     DiscreteVariable, PoissonVariable, NegativeBinomialVariable, 
@@ -489,6 +489,25 @@ class PCE():
             var = DiscreteVariable(
                 pdf, interval_low, interval_high, number=self._var_count, 
                 order=curr_order, **kwargs
+            )
+
+        elif dist is Distribution.GAUSSIAN_MIXTURE:
+            req_1 = 'weights'
+            req_2 = 'means'
+            req_3 = 'stdevs'
+            try:
+                weights = kwargs.pop(req_1)
+                means = kwargs.pop(req_2)
+                stdevs = kwargs.pop(req_3)
+            except:
+                print(
+                    f'Key word arguments `{req_1}`, `{req_2}`, and `{req_3}` are '
+                    f'required inputs for the {distribution} variable.', file=sys.stderr
+                )
+            
+            var = GaussianMixtureVariable(
+                weights, means, stdevs, number=self._var_count, order=curr_order, 
+                **kwargs
             )
 
         self._add_variable(var)

@@ -1871,6 +1871,240 @@ class LognormalVariable(ContinuousVariable):
         """
         return self.dist.stats('m')
 
+class GaussianMixtureVariable(ContinuousVariable):
+    """
+    Represents a Gaussian Mixture Model variable. The methods in this class 
+    correspond to those of a Gaussian mixture distribution.
+
+    Parameters
+    ----------
+    weights :
+        the weights of each Gaussian component (must sum to 1)
+    means :
+        the means of each Gaussian component  
+    stdevs :
+        the standard deviations of each Gaussian component
+    order :
+        the order of the model to calculate the orthogonal polynomials and norm 
+        squared values
+    name :
+        the name of the variable
+    number :
+        the number of the variable from the file
+    """
+
+    __slots__ = ('weights', 'means', 'stdevs', 'n_components', 'dist')
+
+    def __init__(self, weights, means, stdevs, order=2, name='', number=0):
+
+        # Convert to numpy arrays and validate
+        self.weights = np.array(weights, dtype=float)
+        self.means = np.array(means, dtype=float)
+        self.stdevs = np.array(stdevs, dtype=float)
+        self.n_components = len(self.weights)
+        
+        if not (len(self.weights) == len(self.means) == len(self.stdevs)):
+            raise VariableInputError(
+                'GaussianMixtureVariable weights, means, and stdevs must have '
+                'the same length.'
+            )
+        
+        if not np.all(self.stdevs > 0):
+            raise VariableInputError(
+                'GaussianMixtureVariable stdevs must all be greater than 0.'
+            )
+        
+        # Normalize weights
+        weight_sum = np.sum(self.weights)
+        if np.abs(weight_sum - 1.0) > 1e-6:
+            self.weights = self.weights / weight_sum
+        
+        self.order = order
+        self.name = f'x{number}' if name == '' else name
+        self.var_str = f'x{number}'
+        self.x = symbols(self.var_str)
+
+        self.distribution = Distribution.GAUSSIAN_MIXTURE
+        self.type = UncertaintyType.ALEATORY
+        
+        # Create a dummy dist object for compatibility
+        # Using the dominant component for approximation
+        dominant_idx = np.argmax(self.weights)
+        self.dist = norm(loc=self.means[dominant_idx], scale=self.stdevs[dominant_idx])
+
+        # Set bounds
+        bounds_factor = 4
+        self.interval_low = float(np.min(self.means - bounds_factor * self.stdevs))
+        self.interval_high = float(np.max(self.means + bounds_factor * self.stdevs))
+
+        self.low_approx = self.interval_low
+        self.high_approx = self.interval_high
+
+        self.bounds = (self.interval_low, self.interval_high)
+        self.std_bounds = (-1, 1)
+
+        # Create PDF as string then parse (following ContinuousVariable pattern)
+        pdf_str = self._create_pdf_string()
+        self.distribution = parse_expr(pdf_str, local_dict={'x': self.x})
+
+        self.check_num_string()
+
+        # Call parent class methods
+        self.recursive_var_basis(
+            self.distribution, self.interval_low, self.interval_high, self.order
+        )
+        
+        self.create_norm_sq(
+            self.interval_low, self.interval_high, self.distribution
+        )
+
+    def _create_pdf_string(self):
+        """
+        Creates a string representation of the GMM PDF that can be parsed by sympy.
+        """
+        import math
+        terms = []
+        
+        for i in range(self.n_components):
+            w = float(self.weights[i])
+            mu = float(self.means[i])
+            sigma = float(self.stdevs[i])
+            
+            # Create each Gaussian term as a string
+            coeff = w / (sigma * math.sqrt(2 * math.pi))
+            term = f"{coeff} * exp(-((x - {mu})**2) / (2 * {sigma}**2))"
+            terms.append(term)
+        
+        return " + ".join(terms)
+
+    def generate_samples(self, count, standardize=False):
+        """
+        Overrides the Variable class generate_samples to align with
+        a Gaussian mixture distribution.
+        """
+        # Direct mixture sampling
+        component_indices = np.random.choice(
+            self.n_components, size=count, p=self.weights
+        )
+        
+        samples = np.zeros(count)
+        for i in range(self.n_components):
+            mask = component_indices == i
+            n_samples = np.sum(mask)
+            if n_samples > 0:
+                samples[mask] = np.random.normal(
+                    self.means[i], self.stdevs[i], n_samples
+                )
+        
+        samples = np.clip(samples, self.interval_low, self.interval_high)
+        np.random.shuffle(samples)
+        
+        if standardize:
+            return self.standardize_points(samples)
+        
+        return samples
+
+    def cdf_sample(self, cdf_values):
+        """
+        Sample from the CDF location of the distribution.
+        Uses component selection based on weights.
+        """
+        cdf_values = np.atleast_1d(cdf_values).flatten()
+        count = len(cdf_values)
+        
+        # Select components based on weights
+        component_indices = np.random.choice(
+            self.n_components, size=count, p=self.weights
+        )
+        
+        samples = np.zeros(count)
+        for i in range(self.n_components):
+            mask = component_indices == i
+            n_samples = np.sum(mask)
+            if n_samples > 0:
+                # Use the CDF values for this component
+                samples[mask] = norm.ppf(
+                    cdf_values[mask], 
+                    loc=self.means[i], 
+                    scale=self.stdevs[i]
+                )
+        
+        return np.clip(samples, self.interval_low, self.interval_high)
+
+    def resample(self, count):
+        """
+        Generate resampled values for uncertainty propagation.
+        """
+        return self.generate_samples(count, standardize=True)
+
+    def standardize(self, orig, std_vals):
+        """
+        Overrides the Variable class standardize to align with
+        a Gaussian mixture distribution.
+        """
+        original = getattr(self, orig)
+        standard = self.standardize_points(original)
+        setattr(self, std_vals, standard)
+        return getattr(self, std_vals)
+
+    def standardize_points(self, values):
+        """
+        Standardizes and returns the inputs points.
+        """
+        mean = (self.interval_high + self.interval_low) / 2
+        stdev = (self.interval_high - self.interval_low) / 2
+        return (values - mean) / stdev
+
+    def unstandardize_points(self, value):
+        """
+        Calculates and returns the unscaled variable value from the
+        standardized value.
+        """
+        shift = (self.interval_high + self.interval_low) / 2
+        factor = (self.interval_high - self.interval_low) / 2
+        return (value * factor) + shift
+
+    def check_distribution(self, X):
+        """
+        Overrides the Variable class check_distribution to align with
+        a Gaussian mixture distribution.
+        """
+        std_vals = self.standardize_points(X)
+        mx = np.max(std_vals)
+        mn = np.min(std_vals)
+
+        if rank == 0 and (mx > 1.05) or (mn < -1.05):
+            print(
+                f'Large standardized value for variable {self.name} '
+                'with Gaussian mixture distribution found. Check input and run matrix.',
+                file=sys.stderr
+            )
+            return -1
+
+    def check_num_string(self):
+        """
+        Searches to replace string 'pi' with its numpy equivalent in any of the
+        values that might contain it.
+        """
+        for i in range(self.n_components):
+            if isinstance(self.means[i], str) and 'pi' in self.means[i]:
+                self.means[i] = float(self.means[i].replace('pi', str(np.pi)))
+            
+            if isinstance(self.stdevs[i], str) and 'pi' in self.stdevs[i]:
+                self.stdevs[i] = float(self.stdevs[i].replace('pi', str(np.pi)))
+
+    def get_mean(self):
+        """
+        Return the mean of the variable.
+        """
+        return float(np.sum(self.weights * self.means))
+
+    def get_resamp_vals(self, samp_size):
+        """
+        Generates samp_num number of samples according to the pdf of the
+        Variable.
+        """
+        return self.generate_samples(samp_size)
 
 class EpistemicVariable(UniformVariable):
     
