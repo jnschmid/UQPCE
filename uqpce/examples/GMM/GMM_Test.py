@@ -6,6 +6,10 @@ robust design optimization (minimizing mean + variance).
 All uncertain variables have mean = 0 for simplicity.
 """
 
+import os
+# Disable OpenMDAO reports before importing
+os.environ['OPENMDAO_REPORTS'] = '0'
+
 import numpy as np
 import openmdao.api as om
 from uqpce.mdao.uqpcegroup import UQPCEGroup
@@ -13,7 +17,6 @@ from uqpce.mdao import interface
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 import time
-import os
 
 
 class QuadraticFunction(om.ExplicitComponent):
@@ -60,34 +63,8 @@ class QuadraticFunction(om.ExplicitComponent):
         partials['f', 'a3'] = 0.2*a3
 
 
-class DeterministicWrapper(om.ExplicitComponent):
-    """
-    Wrapper to convert vector output to scalar for deterministic optimization.
-    Takes the first element since all values are identical when deterministic=True.
-    """
-    
-    def initialize(self):
-        self.options.declare('vec_size', types=int)
-    
-    def setup(self):
-        n = self.options['vec_size']
-        self.add_input('f_vec', shape=(n,))
-        self.add_output('f_scalar', val=0.0)
-        
-        self.declare_partials('f_scalar', 'f_vec')
-    
-    def compute(self, inputs, outputs):
-        outputs['f_scalar'] = inputs['f_vec'][0]
-    
-    def compute_partials(self, inputs, partials):
-        n = self.options['vec_size']
-        # Only the first element contributes since all are the same
-        partials['f_scalar', 'f_vec'] = np.zeros((1, n))
-        partials['f_scalar', 'f_vec'][0, 0] = 1.0
-
-
 def monte_carlo_uq(x, y, n_samples=100000):
-    """Post-optimality UQ via Monte Carlo"""
+    """Post-optimality UQ via Monte Carlo for deterministic point only"""
     np.random.seed(42)
     
     # GMM for a1 (zero mean)
@@ -112,7 +89,7 @@ def monte_carlo_uq(x, y, n_samples=100000):
 
 
 def create_plots(results, output_dir):
-    """Create 3x2 visualization grid with improved mean+variance contour"""
+    """Create 3x2 visualization grid"""
     fig, axes = plt.subplots(2, 3, figsize=(15, 10))
     
     x_det, y_det, f_det = results['det_point']
@@ -143,7 +120,7 @@ def create_plots(results, output_dir):
     
     ax.set_xlabel('a1')
     ax.set_ylabel('PDF')
-    ax.set_title('GMM Distribution (a1) - Zero Mean')
+    ax.set_title('GMM Uncertain Variable Distribution (a1)')
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
     
@@ -155,14 +132,14 @@ def create_plots(results, output_dir):
     
     contour = ax.contour(X, Y, Z, levels=15, alpha=0.6)
     ax.clabel(contour, inline=True, fontsize=8)
-    ax.scatter(x_det, y_det, s=200, c='red', marker='s', 
-               label=f'Det: ({x_det:.2f},{y_det:.2f}), f={f_det:.1f}', zorder=5)
-    ax.scatter(x_rob, y_rob, s=200, c='blue', marker='o', 
-               label=f'Rob: ({x_rob:.2f},{y_rob:.2f}), f={f_rob:.1f}', zorder=5)
+    ax.scatter(x_det, y_det, s=150, c='red', marker='s', 
+               label=f'Deterministic: ({x_det:.2f},{y_det:.2f}), f={f_det:.1f}', zorder=5)
+    ax.scatter(x_rob, y_rob, s=150, c='blue', marker='o', 
+               label=f'Robust: ({x_rob:.2f},{y_rob:.2f}), f={f_rob:.1f}', zorder=5)
     
     ax.set_xlabel('x')
     ax.set_ylabel('y')
-    ax.set_title('Objective Function f(x,y) at Mean Parameters')
+    ax.set_title('Objective Function $f$')
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3)
     
@@ -191,14 +168,14 @@ def create_plots(results, output_dir):
     cbar = plt.colorbar(contour, ax=ax)
     cbar.set_label('log₁₀(μ + σ² + 1)', rotation=270, labelpad=15)
     
-    ax.scatter(x_det, y_det, s=200, c='red', marker='s', label=f'Det', 
+    ax.scatter(x_det, y_det, s=200, c='red', marker='s', label=f'Deterministic', 
                edgecolor='white', linewidth=2, zorder=5)
-    ax.scatter(x_rob, y_rob, s=200, c='blue', marker='o', label=f'Rob', 
+    ax.scatter(x_rob, y_rob, s=200, c='blue', marker='o', label=f'Robust', 
                edgecolor='white', linewidth=2, zorder=5)
     
     ax.set_xlabel('x')
     ax.set_ylabel('y')
-    ax.set_title('Mean + Variance Objective (log scale)')
+    ax.set_title(r'$f_{\mu} + f_{\sigma^2}$ Objective (log scale)')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
@@ -209,7 +186,7 @@ def create_plots(results, output_dir):
                linewidth=2, label=f'μ={np.mean(f_det_mc):.1f}')
     ax.set_xlabel('f')
     ax.set_ylabel('PDF')
-    ax.set_title(f'Post-Opt UQ at Det Point ({x_det:.2f},{y_det:.2f})')
+    ax.set_title(f'Distribution of $f$ at Deterministic Optimal Point ({x_det:.2f},{y_det:.2f})')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
@@ -220,7 +197,7 @@ def create_plots(results, output_dir):
                linewidth=2, label=f'μ={np.mean(f_rob_mc):.1f}')
     ax.set_xlabel('f')
     ax.set_ylabel('PDF')
-    ax.set_title(f'UQ at Robust Point ({x_rob:.2f},{y_rob:.2f})')
+    ax.set_title(f'Distribution of $f$ at Robust Optimal Point ({x_rob:.2f},{y_rob:.2f})')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
@@ -232,14 +209,14 @@ def create_plots(results, output_dir):
     table_data = [
         ['Metric', 'Deterministic', 'Robust'],
         ['', '', ''],
-        ['Design x', f'{x_det:.3f}', f'{x_rob:.3f}'],
-        ['Design y', f'{y_det:.3f}', f'{y_rob:.3f}'],
+        ['$x$', f'{x_det:.3f}', f'{x_rob:.3f}'],
+        ['$y$', f'{y_det:.3f}', f'{y_rob:.3f}'],
         ['', '', ''],
-        ['f(x,y) at means', f'{f_det:.1f}', f'{f_rob:.1f}'],
+        ['$f$', f'{f_det:.1f}', f'{f_rob:.1f}'],
         ['', '', ''],
-        ['Post-opt Mean', f'{np.mean(f_det_mc):.1f}', f'{np.mean(f_rob_mc):.1f}'],
-        ['Post-opt Variance', f'{np.var(f_det_mc):.1f}', f'{np.var(f_rob_mc):.1f}'],
-        ['Mean + Variance', f'{np.mean(f_det_mc)+np.var(f_det_mc):.1f}', 
+        [r'Post-optimality  $f_{\mu}$', f'{np.mean(f_det_mc):.1f}', f'{np.mean(f_rob_mc):.1f}'],
+        [r'Post-optimality $f_{\sigma^2}$', f'{np.var(f_det_mc):.1f}', f'{np.var(f_rob_mc):.1f}'],
+        [r'Post-optimality $f_{\mu} + f_{\sigma^2}$', f'{np.mean(f_det_mc)+np.var(f_det_mc):.1f}', 
          f'{np.mean(f_rob_mc)+np.var(f_rob_mc):.1f}'],
     ]
     
@@ -255,7 +232,7 @@ def create_plots(results, output_dir):
     
     ax.set_title('Comparison Results', fontweight='bold')
     
-    plt.suptitle('GMM-UQPCE: Robust vs Deterministic Optimization (Zero-Mean Uncertainties)', fontsize=14)
+    plt.suptitle('Gaussian Mixture Model (GMM) Implementation in UQPCE: Robust vs Deterministic Optimization', fontsize=14)
     plt.tight_layout()
     
     # Save to the same directory as the script
@@ -283,18 +260,12 @@ def run_deterministic_with_uqpce(input_file, matrix_file):
     for i, var in enumerate(variables):
         print(f"  {var.name}: {var.get_mean():.3f}")
     
-    # Set up optimization problem with reports disabled
-    prob_det = om.Problem(reports=False)
+    # Set up optimization problem
+    prob_det = om.Problem(reports=None)
     
     # Add the quadratic function
     prob_det.model.add_subsystem('func', QuadraticFunction(vec_size=resp_cnt),
-                                  promotes_inputs=['x', 'y', 'a1', 'a2', 'a3'],
-                                  promotes_outputs=[('f', 'f_vec')])
-    
-    # Add wrapper to convert vector to scalar
-    prob_det.model.add_subsystem('wrapper', DeterministicWrapper(vec_size=resp_cnt),
-                                  promotes_inputs=['f_vec'],
-                                  promotes_outputs=[('f_scalar', 'f')])
+                                  promotes=['*'])
     
     # Use SNOPT and disable reports
     prob_det.driver = om.pyOptSparseDriver(optimizer='SNOPT')
@@ -302,7 +273,9 @@ def run_deterministic_with_uqpce(input_file, matrix_file):
     
     prob_det.model.add_design_var('x', lower=-2, upper=3)
     prob_det.model.add_design_var('y', lower=-2, upper=3)
-    prob_det.model.add_objective('f')
+    
+    # Just use f[0] as the objective since all elements are identical
+    prob_det.model.add_objective('f', index=0)
     
     prob_det.setup()
     
@@ -364,8 +337,8 @@ def main():
      aleatory_cnt, epistemic_cnt, resp_cnt, order, variables, 
      sig, run_matrix) = interface.initialize(input_file, matrix_file)
     
-    # Set up problem with reports disabled
-    prob = om.Problem(reports=False)
+    # Set up problem
+    prob = om.Problem(reports=None)
     
     prob.model.add_subsystem('func', QuadraticFunction(vec_size=resp_cnt),
                               promotes_inputs=['x', 'y', 'a1', 'a2', 'a3'],
@@ -381,7 +354,7 @@ def main():
             sample_ref0=[1], sample_ref=[10]
         ),
         promotes_inputs=['f'],
-        promotes_outputs=['f:mean', 'f:variance', 'f:mean_plus_var']
+        promotes_outputs=['f:mean', 'f:variance', 'f:mean_plus_var', 'f:resampled_responses']
     )
     
     # Use SNOPT and disable reports
@@ -408,22 +381,27 @@ def main():
     x_rob = prob.get_val('x')[0]
     y_rob = prob.get_val('y')[0]
     
+    # Get the resampled responses from UQPCE (these are the Monte Carlo samples)
+    f_rob_mc = prob.get_val('f:resampled_responses').flatten()
+    
     # Get f value at robust point with mean parameters for comparison
-    # Re-run with deterministic=True to get f at mean values
     interface.set_vals(prob, variables, run_matrix, deterministic=True)
     prob.run_model()
     f_rob = prob.get_val('f')[0]
     
     print(f"Optimal point: x = {x_rob:.3f}, y = {y_rob:.3f}")
     print(f"Objective value at means: f = {f_rob:.3f}")
+    print(f"UQPCE statistics from resampled responses:")
+    print(f"  Mean: {np.mean(f_rob_mc):.3f}")
+    print(f"  Variance: {np.var(f_rob_mc):.3f}")
     
     # ========== POST-OPTIMALITY UQ ==========
     print("\n" + "-"*40)
     print("POST-OPTIMALITY UQ")
     print("-"*40)
     
+    # Only need Monte Carlo for deterministic point
     f_det_mc = monte_carlo_uq(x_det, y_det)
-    f_rob_mc = monte_carlo_uq(x_rob, y_rob)
     
     # ========== RESULTS ==========
     print("\n" + "="*60)
@@ -433,7 +411,7 @@ def main():
     print(f"  Post-opt: μ={np.mean(f_det_mc):.1f}, σ²={np.var(f_det_mc):.1f}")
     
     print(f"\nRobust: x={x_rob:.3f}, y={y_rob:.3f}, f={f_rob:.1f}")
-    print(f"  Post-opt: μ={np.mean(f_rob_mc):.1f}, σ²={np.var(f_rob_mc):.1f}")
+    print(f"  UQPCE: μ={np.mean(f_rob_mc):.1f}, σ²={np.var(f_rob_mc):.1f}")
     
     print(f"\nTrade-off: Δf = {f_rob - f_det:.1f} (robust accepts higher f for lower variance)")
     print(f"Total objective improvement: {(np.mean(f_det_mc)+np.var(f_det_mc)) - (np.mean(f_rob_mc)+np.var(f_rob_mc)):.1f}")
@@ -443,7 +421,7 @@ def main():
         'det_point': (x_det, y_det, f_det),
         'rob_point': (x_rob, y_rob, f_rob),
         'det_mc': f_det_mc,
-        'rob_mc': f_rob_mc
+        'rob_mc': f_rob_mc  # Using UQPCE's resampled responses
     }
     create_plots(results, script_dir)
     

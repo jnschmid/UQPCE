@@ -2319,21 +2319,21 @@ class TestGaussianMixtureVariable(unittest.TestCase):
         """Test resample method for PCE internal use."""
         gmm = GaussianMixtureVariable(
             weights=[0.5, 0.5],
-            means=[-1.0, 1.0],
+            means=[-1, 1],
             stdevs=[0.5, 0.5],
-            order=1
+            order=2
         )
         
-        n_samples = 100
-        samples = gmm.resample(n_samples)
+        samples = gmm.resample(1000)
         
-        # Should be standardized
-        self.assertEqual(len(samples), n_samples)
+        # Check that samples are standardized
+        self.assertAlmostEqual(np.mean(samples), 0, places=1)
+        self.assertAlmostEqual(np.std(samples), 1, places=1)
         
-        # Should include extreme values for coverage
-        self.assertAlmostEqual(np.min(samples), gmm.std_bounds[0])
-        self.assertAlmostEqual(np.max(samples), gmm.std_bounds[1])
-    
+        # They should be within reasonable bounds but not forced to extremes
+        self.assertLess(np.max(np.abs(samples)), 5)  # Should be within ~5 sigma
+        self.assertGreater(np.max(np.abs(samples)), 2)  # Should have some spread
+        
     def test_get_norm_sq_val(self):
         """Test norm squared value retrieval."""
         gmm = GaussianMixtureVariable(

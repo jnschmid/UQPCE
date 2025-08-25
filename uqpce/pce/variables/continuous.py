@@ -1960,7 +1960,7 @@ class GaussianMixtureVariable(Variable):
         
         # Use normal approximation for extended bounds
         self.dist = norm(loc=self.mean, scale=self.stdev)
-        low_percent = 8e-17
+        low_percent = 1e-7
         high_percent = 1 - low_percent
         norm_low = self.dist.ppf(low_percent)
         norm_high = self.dist.ppf(high_percent)
@@ -2204,12 +2204,7 @@ class GaussianMixtureVariable(Variable):
         Following Variable class pattern.
         """
         samps = self.generate_samples(count, standardize=True)
-        
-        # Set extreme values for better coverage (following Variable pattern)
-        if len(samps) > 1:
-            samps[np.argmin(samps)] = self.std_bounds[0]
-            samps[np.argmax(samps)] = self.std_bounds[1]
-        
+
         return samps
     
     def standardize(self, orig, std_vals):
