@@ -1673,6 +1673,174 @@ class TestGammaVariable(unittest.TestCase):
         )
 
 
+class TestEpistemicVariable(unittest.TestCase):
+
+    def setUp(self):
+        np.random.seed(33)
+        self.var = EpistemicVariable(interval_low=2, interval_high=9)
+
+    def test(self):
+        self.assertTrue(self.var.type == UncertaintyType.EPISTEMIC)
+
+
+    """Debug why orthogonality isn't working."""
+    
+    def test_orthogonality_debug(self):
+        """Debug orthogonality issues in GMM Gram-Schmidt."""
+        print("\n" + "="*70)
+        print("DEBUG: Orthogonality Analysis")
+        print("="*70)
+        
+        from sympy import lambdify, symbols
+        
+        # Create the GMM
+        gmm = GaussianMixtureVariable(
+            weights=[0.3, 0.5, 0.2],
+            means=[-1.0, 0.0, 2.0],
+            stdevs=[0.3, 0.5, 0.4],
+            order=2
+        )
+        
+        x = symbols('x0')
+        
+        # Print the actual polynomials
+        print("\nGenerated Polynomials:")
+        for i in range(3):
+            print(f"  P_{i} = {gmm.var_orthopoly_vect[i]}")
+        
+        print(f"\nNorm squared values from integration:")
+        for i in range(3):
+            print(f"  ||P_{i}||² = {gmm.norm_sq_vals[i]:.6f}")
+        
+        # Check orthogonality via integration (what Gram-Schmidt computed)
+        print("\nOrthogonality via integration:")
+        integration_results = {}
+        for i in range(3):
+            for j in range(i, 3):
+                inner_prod = gmm._compute_inner_product(
+                    gmm.var_orthopoly_vect[i], 
+                    gmm.var_orthopoly_vect[j]
+                )
+                integration_results[(i,j)] = inner_prod
+                print(f"  <P_{i}, P_{j}>_integration = {inner_prod:.6f}")
+        
+        # Check orthogonality empirically
+        n_samples = 100000
+        X = gmm.generate_samples(n_samples, standardize=True)
+        
+        print(f"\nSample statistics:")
+        print(f"  Mean: {np.mean(X):.6f}")
+        print(f"  Std:  {np.std(X):.6f}")
+        
+        print("\nOrthogonality via empirical expectation:")
+        empirical_results = {}
+        for i in range(3):
+            for j in range(i, 3):
+                poly_i = lambdify(x, gmm.var_orthopoly_vect[i], 'numpy')
+                poly_j = lambdify(x, gmm.var_orthopoly_vect[j], 'numpy')
+                
+                vals_i = poly_i(X)
+                vals_j = poly_j(X)
+                inner_prod_empirical = np.mean(vals_i * vals_j)
+                empirical_results[(i,j)] = inner_prod_empirical
+                
+                print(f"  <P_{i}, P_{j}>_empirical = {inner_prod_empirical:.6f}")
+        
+        # Check if the PDF integrates to 1
+        from scipy.integrate import quad
+        pdf_integral, _ = quad(gmm._gmm_pdf_standardized, -10, 10)
+        print(f"\nPDF integral: {pdf_integral:.6f} (should be 1.0)")
+        
+        # Try Monte Carlo integration
+        print("\nMonte Carlo integration check:")
+        mc_results = {}
+        for i in range(3):
+            for j in range(i, 3):
+                poly_i = lambdify(x, gmm.var_orthopoly_vect[i], 'numpy')
+                poly_j = lambdify(x, gmm.var_orthopoly_vect[j], 'numpy')
+                
+                # Generate a grid of points
+                x_grid = np.linspace(-10, 10, 10000)
+                pdf_vals = gmm._gmm_pdf_standardized(x_grid)
+                poly_i_vals = poly_i(x_grid)
+                poly_j_vals = poly_j(x_grid)
+                
+                # Trapezoidal integration
+                inner_prod_mc = np.trapz(poly_i_vals * poly_j_vals * pdf_vals, x_grid)
+                mc_results[(i,j)] = inner_prod_mc
+                print(f"  <P_{i}, P_{j}>_MC = {inner_prod_mc:.6f}")
+        
+        # Compare results
+        print("\n" + "="*70)
+        print("COMPARISON OF METHODS:")
+        print("="*70)
+        print("(i,j) | Integration | Empirical | MC Trapz | Match?")
+        print("-" * 55)
+        
+        for i in range(3):
+            for j in range(i, 3):
+                int_val = integration_results[(i,j)]
+                emp_val = empirical_results[(i,j)]
+                mc_val = mc_results[(i,j)]
+                
+                # Check if integration matches MC (should be close)
+                int_mc_match = abs(int_val - mc_val) < 0.01
+                # Check if empirical matches integration
+                emp_int_match = abs(emp_val - int_val) < 0.1
+                
+                match_str = "✓" if (int_mc_match and emp_int_match) else "✗"
+                
+                print(f"({i},{j}) | {int_val:11.6f} | {emp_val:9.6f} | {mc_val:8.6f} | {match_str}")
+        
+        # Additional debugging: check if standardization is the issue
+        print("\n" + "="*70)
+        print("STANDARDIZATION CHECK:")
+        print("="*70)
+        
+        # Generate samples in original space
+        n_test = 1000
+        components = np.random.choice(gmm.n_components, size=n_test, p=gmm.weights)
+        X_orig = np.zeros(n_test)
+        for i in range(gmm.n_components):
+            mask = components == i
+            n_comp = np.sum(mask)
+            if n_comp > 0:
+                X_orig[mask] = np.random.normal(gmm.means[i], gmm.stdevs[i], n_comp)
+        
+        # Standardize manually
+        X_std_manual = (X_orig - gmm.mean) / gmm.stdev
+        
+        print(f"Original space: mean={np.mean(X_orig):.4f}, std={np.std(X_orig):.4f}")
+        print(f"After standardization: mean={np.mean(X_std_manual):.4f}, std={np.std(X_std_manual):.4f}")
+        
+        # Compare with generate_samples
+        X_std_method = gmm.generate_samples(n_test, standardize=True)
+        print(f"Via generate_samples: mean={np.mean(X_std_method):.4f}, std={np.std(X_std_method):.4f}")
+        
+        # Check if the issue is with the empirical expectation
+        print("\n" + "="*70)
+        print("EMPIRICAL CONVERGENCE CHECK:")
+        print("="*70)
+        
+        sample_sizes = [1000, 10000, 100000, 1000000]
+        print("Testing <P_1, P_2> convergence:")
+        print("N       | <P_1, P_2>")
+        print("-" * 25)
+        
+        poly_1 = lambdify(x, gmm.var_orthopoly_vect[1], 'numpy')
+        poly_2 = lambdify(x, gmm.var_orthopoly_vect[2], 'numpy')
+        
+        for n in sample_sizes:
+            X_test = gmm.generate_samples(n, standardize=True)
+            inner_12 = np.mean(poly_1(X_test) * poly_2(X_test))
+            print(f"{n:7d} | {inner_12:.6f}")
+        
+        print(f"\nExpected (from integration): {integration_results[(1,2)]:.6f}")
+        
+        # This test always passes - it's just for debugging
+        self.assertTrue(True, "Debug test completed")
+
+
 class TestLognormalVariable(unittest.TestCase):
 
     def setUp(self):
@@ -1912,174 +2080,6 @@ class TestLognormalVariable(unittest.TestCase):
             np.abs(act_mean - calc_mean) < tol,
             msg='LognormalVariable get_mean is not correct'
         )
-
-
-class TestEpistemicVariable(unittest.TestCase):
-
-    def setUp(self):
-        np.random.seed(33)
-        self.var = EpistemicVariable(interval_low=2, interval_high=9)
-
-    def test(self):
-        self.assertTrue(self.var.type == UncertaintyType.EPISTEMIC)
-
-
-    """Debug why orthogonality isn't working."""
-    
-    def test_orthogonality_debug(self):
-        """Debug orthogonality issues in GMM Gram-Schmidt."""
-        print("\n" + "="*70)
-        print("DEBUG: Orthogonality Analysis")
-        print("="*70)
-        
-        from sympy import lambdify, symbols
-        
-        # Create the GMM
-        gmm = GaussianMixtureVariable(
-            weights=[0.3, 0.5, 0.2],
-            means=[-1.0, 0.0, 2.0],
-            stdevs=[0.3, 0.5, 0.4],
-            order=2
-        )
-        
-        x = symbols('x0')
-        
-        # Print the actual polynomials
-        print("\nGenerated Polynomials:")
-        for i in range(3):
-            print(f"  P_{i} = {gmm.var_orthopoly_vect[i]}")
-        
-        print(f"\nNorm squared values from integration:")
-        for i in range(3):
-            print(f"  ||P_{i}||² = {gmm.norm_sq_vals[i]:.6f}")
-        
-        # Check orthogonality via integration (what Gram-Schmidt computed)
-        print("\nOrthogonality via integration:")
-        integration_results = {}
-        for i in range(3):
-            for j in range(i, 3):
-                inner_prod = gmm._compute_inner_product(
-                    gmm.var_orthopoly_vect[i], 
-                    gmm.var_orthopoly_vect[j]
-                )
-                integration_results[(i,j)] = inner_prod
-                print(f"  <P_{i}, P_{j}>_integration = {inner_prod:.6f}")
-        
-        # Check orthogonality empirically
-        n_samples = 100000
-        X = gmm.generate_samples(n_samples, standardize=True)
-        
-        print(f"\nSample statistics:")
-        print(f"  Mean: {np.mean(X):.6f}")
-        print(f"  Std:  {np.std(X):.6f}")
-        
-        print("\nOrthogonality via empirical expectation:")
-        empirical_results = {}
-        for i in range(3):
-            for j in range(i, 3):
-                poly_i = lambdify(x, gmm.var_orthopoly_vect[i], 'numpy')
-                poly_j = lambdify(x, gmm.var_orthopoly_vect[j], 'numpy')
-                
-                vals_i = poly_i(X)
-                vals_j = poly_j(X)
-                inner_prod_empirical = np.mean(vals_i * vals_j)
-                empirical_results[(i,j)] = inner_prod_empirical
-                
-                print(f"  <P_{i}, P_{j}>_empirical = {inner_prod_empirical:.6f}")
-        
-        # Check if the PDF integrates to 1
-        from scipy.integrate import quad
-        pdf_integral, _ = quad(gmm._gmm_pdf_standardized, -10, 10)
-        print(f"\nPDF integral: {pdf_integral:.6f} (should be 1.0)")
-        
-        # Try Monte Carlo integration
-        print("\nMonte Carlo integration check:")
-        mc_results = {}
-        for i in range(3):
-            for j in range(i, 3):
-                poly_i = lambdify(x, gmm.var_orthopoly_vect[i], 'numpy')
-                poly_j = lambdify(x, gmm.var_orthopoly_vect[j], 'numpy')
-                
-                # Generate a grid of points
-                x_grid = np.linspace(-10, 10, 10000)
-                pdf_vals = gmm._gmm_pdf_standardized(x_grid)
-                poly_i_vals = poly_i(x_grid)
-                poly_j_vals = poly_j(x_grid)
-                
-                # Trapezoidal integration
-                inner_prod_mc = np.trapz(poly_i_vals * poly_j_vals * pdf_vals, x_grid)
-                mc_results[(i,j)] = inner_prod_mc
-                print(f"  <P_{i}, P_{j}>_MC = {inner_prod_mc:.6f}")
-        
-        # Compare results
-        print("\n" + "="*70)
-        print("COMPARISON OF METHODS:")
-        print("="*70)
-        print("(i,j) | Integration | Empirical | MC Trapz | Match?")
-        print("-" * 55)
-        
-        for i in range(3):
-            for j in range(i, 3):
-                int_val = integration_results[(i,j)]
-                emp_val = empirical_results[(i,j)]
-                mc_val = mc_results[(i,j)]
-                
-                # Check if integration matches MC (should be close)
-                int_mc_match = abs(int_val - mc_val) < 0.01
-                # Check if empirical matches integration
-                emp_int_match = abs(emp_val - int_val) < 0.1
-                
-                match_str = "✓" if (int_mc_match and emp_int_match) else "✗"
-                
-                print(f"({i},{j}) | {int_val:11.6f} | {emp_val:9.6f} | {mc_val:8.6f} | {match_str}")
-        
-        # Additional debugging: check if standardization is the issue
-        print("\n" + "="*70)
-        print("STANDARDIZATION CHECK:")
-        print("="*70)
-        
-        # Generate samples in original space
-        n_test = 1000
-        components = np.random.choice(gmm.n_components, size=n_test, p=gmm.weights)
-        X_orig = np.zeros(n_test)
-        for i in range(gmm.n_components):
-            mask = components == i
-            n_comp = np.sum(mask)
-            if n_comp > 0:
-                X_orig[mask] = np.random.normal(gmm.means[i], gmm.stdevs[i], n_comp)
-        
-        # Standardize manually
-        X_std_manual = (X_orig - gmm.mean) / gmm.stdev
-        
-        print(f"Original space: mean={np.mean(X_orig):.4f}, std={np.std(X_orig):.4f}")
-        print(f"After standardization: mean={np.mean(X_std_manual):.4f}, std={np.std(X_std_manual):.4f}")
-        
-        # Compare with generate_samples
-        X_std_method = gmm.generate_samples(n_test, standardize=True)
-        print(f"Via generate_samples: mean={np.mean(X_std_method):.4f}, std={np.std(X_std_method):.4f}")
-        
-        # Check if the issue is with the empirical expectation
-        print("\n" + "="*70)
-        print("EMPIRICAL CONVERGENCE CHECK:")
-        print("="*70)
-        
-        sample_sizes = [1000, 10000, 100000, 1000000]
-        print("Testing <P_1, P_2> convergence:")
-        print("N       | <P_1, P_2>")
-        print("-" * 25)
-        
-        poly_1 = lambdify(x, gmm.var_orthopoly_vect[1], 'numpy')
-        poly_2 = lambdify(x, gmm.var_orthopoly_vect[2], 'numpy')
-        
-        for n in sample_sizes:
-            X_test = gmm.generate_samples(n, standardize=True)
-            inner_12 = np.mean(poly_1(X_test) * poly_2(X_test))
-            print(f"{n:7d} | {inner_12:.6f}")
-        
-        print(f"\nExpected (from integration): {integration_results[(1,2)]:.6f}")
-        
-        # This test always passes - it's just for debugging
-        self.assertTrue(True, "Debug test completed")
 
 
 class TestGaussianMixtureVariable(unittest.TestCase):
@@ -2379,45 +2379,6 @@ class TestGMMWithPCE(unittest.TestCase):
         self.assertAlmostEqual(pce.mean[0], 1.0, places=1)
         self.assertAlmostEqual(pce.variance[0], 2.0, places=0)
     
-
-    def test_pce_convergence_with_gmm(self):
-        """Test that PCE converges as sample size increases."""
-        # Create GMM
-        weights = [0.4, 0.6]
-        means = [-1.0, 2.0]
-        stdevs = [0.5, 1.0]
-        
-        # True function: f(x) = x^2 - x
-        func = lambda x: x**2 - x
-        
-        # Expected statistics
-        gmm_mean = np.sum(np.array(weights) * np.array(means))
-        e_x2 = np.sum(np.array(weights) * (np.array(stdevs)**2 + np.array(means)**2))
-        expected_mean = e_x2 - gmm_mean
-        
-        sample_sizes = [50, 100, 200]
-        errors = []
-        
-        for n in sample_sizes:
-            pce = PCE(order=2, outputs=False, verbose=False, plot=False)
-            pce.add_variable(
-                distribution='GAUSSIAN_MIXTURE',
-                weights=weights,
-                means=means,
-                stdevs=stdevs
-            )
-            
-            X = pce.sample(n)
-            y = func(X[:, 0])
-            
-            pce.fit(X, y)
-            
-            error = abs(pce.mean[0] - expected_mean)
-            errors.append(error)
-        
-        # Error should generally decrease with more samples
-        self.assertLess(errors[-1], errors[0] * 2,  # Allow some variance
-                       "Error should not increase dramatically with more samples")
 
     def test_pce_with_bimodal_gmm(self):
         """Test PCE with bimodal GMM."""

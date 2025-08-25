@@ -60,6 +60,32 @@ class QuadraticFunction(om.ExplicitComponent):
         partials['f', 'a3'] = 0.2*a3
 
 
+class DeterministicWrapper(om.ExplicitComponent):
+    """
+    Wrapper to convert vector output to scalar for deterministic optimization.
+    Takes the first element since all values are identical when deterministic=True.
+    """
+    
+    def initialize(self):
+        self.options.declare('vec_size', types=int)
+    
+    def setup(self):
+        n = self.options['vec_size']
+        self.add_input('f_vec', shape=(n,))
+        self.add_output('f_scalar', val=0.0)
+        
+        self.declare_partials('f_scalar', 'f_vec')
+    
+    def compute(self, inputs, outputs):
+        outputs['f_scalar'] = inputs['f_vec'][0]
+    
+    def compute_partials(self, inputs, partials):
+        n = self.options['vec_size']
+        # Only the first element contributes since all are the same
+        partials['f_scalar', 'f_vec'] = np.zeros((1, n))
+        partials['f_scalar', 'f_vec'][0, 0] = 1.0
+
+
 def monte_carlo_uq(x, y, n_samples=100000):
     """Post-optimality UQ via Monte Carlo"""
     np.random.seed(42)
@@ -86,7 +112,7 @@ def monte_carlo_uq(x, y, n_samples=100000):
 
 
 def create_plots(results, output_dir):
-    """Create 3x2 visualization grid"""
+    """Create 3x2 visualization grid with improved mean+variance contour"""
     fig, axes = plt.subplots(2, 3, figsize=(15, 10))
     
     x_det, y_det, f_det = results['det_point']
@@ -140,7 +166,7 @@ def create_plots(results, output_dir):
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3)
     
-    # 3. Mean + Variance contour
+    # 3. Mean + Variance contour with log scale
     ax = axes[0, 2]
     Z_mv = np.zeros_like(X)
     for i in range(X.shape[0]):
@@ -148,14 +174,31 @@ def create_plots(results, output_dir):
             f_samples = monte_carlo_uq(X[i,j], Y[i,j], 10000)
             Z_mv[i,j] = np.mean(f_samples) + np.var(f_samples)
     
-    contour = ax.contour(X, Y, Z_mv, levels=15, alpha=0.6)
-    ax.clabel(contour, inline=True, fontsize=8)
-    ax.scatter(x_det, y_det, s=200, c='red', marker='s', label=f'Det', zorder=5)
-    ax.scatter(x_rob, y_rob, s=200, c='blue', marker='o', label=f'Rob', zorder=5)
+    # Use log scale for better visualization
+    Z_mv_log = np.log10(Z_mv + 1)  # Add 1 to avoid log(0)
+    
+    # Create contour plot with more levels for better resolution
+    levels = np.linspace(Z_mv_log.min(), Z_mv_log.max(), 20)
+    contour = ax.contour(X, Y, Z_mv_log, levels=levels, alpha=0.6, cmap='viridis')
+    
+    # Add contour labels with actual values (not log)
+    fmt = {}
+    for level, label in zip(contour.levels, contour.levels):
+        fmt[level] = f'{10**label - 1:.0f}'  # Convert back from log scale
+    ax.clabel(contour, inline=True, fontsize=7, fmt=fmt)
+    
+    # Add colorbar
+    cbar = plt.colorbar(contour, ax=ax)
+    cbar.set_label('log₁₀(μ + σ² + 1)', rotation=270, labelpad=15)
+    
+    ax.scatter(x_det, y_det, s=200, c='red', marker='s', label=f'Det', 
+               edgecolor='white', linewidth=2, zorder=5)
+    ax.scatter(x_rob, y_rob, s=200, c='blue', marker='o', label=f'Rob', 
+               edgecolor='white', linewidth=2, zorder=5)
     
     ax.set_xlabel('x')
     ax.set_ylabel('y')
-    ax.set_title('Mean + Variance Objective')
+    ax.set_title('Mean + Variance Objective (log scale)')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
@@ -222,6 +265,70 @@ def create_plots(results, output_dir):
     plt.show()
 
 
+def run_deterministic_with_uqpce(input_file, matrix_file):
+    """
+    Deterministic optimization using UQPCE framework with deterministic flag.
+    """
+    print("\n" + "-"*40)
+    print("DETERMINISTIC OPTIMIZATION (UQPCE framework)")
+    print("-"*40)
+    
+    # Initialize UQPCE
+    (var_basis, norm_sq, resampled_var_basis, 
+     aleatory_cnt, epistemic_cnt, resp_cnt, order, variables, 
+     sig, run_matrix) = interface.initialize(input_file, matrix_file)
+    
+    # Verify mean values
+    print("Verifying uncertain parameter means:")
+    for i, var in enumerate(variables):
+        print(f"  {var.name}: {var.get_mean():.3f}")
+    
+    # Set up optimization problem with reports disabled
+    prob_det = om.Problem(reports=False)
+    
+    # Add the quadratic function
+    prob_det.model.add_subsystem('func', QuadraticFunction(vec_size=resp_cnt),
+                                  promotes_inputs=['x', 'y', 'a1', 'a2', 'a3'],
+                                  promotes_outputs=[('f', 'f_vec')])
+    
+    # Add wrapper to convert vector to scalar
+    prob_det.model.add_subsystem('wrapper', DeterministicWrapper(vec_size=resp_cnt),
+                                  promotes_inputs=['f_vec'],
+                                  promotes_outputs=[('f_scalar', 'f')])
+    
+    # Use SNOPT and disable reports
+    prob_det.driver = om.pyOptSparseDriver(optimizer='SNOPT')
+    prob_det.driver.options['print_results'] = False
+    
+    prob_det.model.add_design_var('x', lower=-2, upper=3)
+    prob_det.model.add_design_var('y', lower=-2, upper=3)
+    prob_det.model.add_objective('f')
+    
+    prob_det.setup()
+    
+    # Disable OpenMDAO report generation
+    prob_det.set_solver_print(level=0)
+    
+    # Set initial guess
+    prob_det.set_val('x', 0.0)
+    prob_det.set_val('y', 0.0)
+    
+    # Use interface.set_vals with deterministic=True
+    interface.set_vals(prob_det, variables, run_matrix, deterministic=True)
+    
+    # Run optimization
+    prob_det.run_driver()
+    
+    x_det = prob_det.get_val('x')[0]
+    y_det = prob_det.get_val('y')[0]
+    f_det = prob_det.get_val('f')[0]
+    
+    print(f"Optimal point: x = {x_det:.3f}, y = {y_det:.3f}")
+    print(f"Objective value: f = {f_det:.3f}")
+    
+    return x_det, y_det, f_det
+
+
 def main():
     start_time = time.time()
     
@@ -244,46 +351,22 @@ def main():
     if not os.path.exists(matrix_file):
         raise FileNotFoundError(f"Cannot find matrix file: {matrix_file}")
     
+    # ========== DETERMINISTIC OPTIMIZATION (UQPCE) ==========
+    x_det, y_det, f_det = run_deterministic_with_uqpce(input_file, matrix_file)
+    
+    # ========== ROBUST OPTIMIZATION ==========
+    print("\n" + "-"*40)
+    print("ROBUST OPTIMIZATION (minimize μ + σ²)")
+    print("-"*40)
+    
     # Initialize UQPCE
     (var_basis, norm_sq, resampled_var_basis, 
      aleatory_cnt, epistemic_cnt, resp_cnt, order, variables, 
      sig, run_matrix) = interface.initialize(input_file, matrix_file)
     
-    # All parameter means are zero
-    a1_mean = 0.0  # GMM: 0.3*(-2) + 0.5*0 + 0.2*3 = 0
-    a2_mean = 0.0  # Uniform[-2,2] mean
-    a3_mean = 0.0  # Normal(0,1) mean
+    # Set up problem with reports disabled
+    prob = om.Problem(reports=False)
     
-    print(f"\nVerifying zero means:")
-    print(f"  a1 (GMM): {0.3*(-2) + 0.5*0 + 0.2*3:.3f}")
-    print(f"  a2 (Uniform): {a2_mean:.3f}")
-    print(f"  a3 (Normal): {a3_mean:.3f}")
-    
-    # ========== DETERMINISTIC OPTIMIZATION ==========
-    print("\nDeterministic Optimization (fixed at means = 0)...")
-    prob_det = om.Problem()
-    prob_det.model.add_subsystem('func', QuadraticFunction(vec_size=1), promotes=['*'])
-    prob_det.driver = om.pyOptSparseDriver(optimizer='SLSQP')
-    prob_det.model.add_design_var('x', lower=-2, upper=3)
-    prob_det.model.add_design_var('y', lower=-2, upper=3)
-    prob_det.model.add_objective('f')
-    prob_det.setup()
-    
-    prob_det.set_val('x', 0.0)
-    prob_det.set_val('y', 0.0)
-    prob_det.set_val('a1', a1_mean)
-    prob_det.set_val('a2', a2_mean)
-    prob_det.set_val('a3', a3_mean)
-    
-    prob_det.run_driver()
-    
-    x_det = prob_det.get_val('x')[0]
-    y_det = prob_det.get_val('y')[0]
-    f_det = prob_det.get_val('f')[0]
-    
-    # ========== ROBUST OPTIMIZATION ==========
-    print("Robust Optimization (min mean+variance)...")
-    prob = om.Problem()
     prob.model.add_subsystem('func', QuadraticFunction(vec_size=resp_cnt),
                               promotes_inputs=['x', 'y', 'a1', 'a2', 'a3'],
                               promotes_outputs=['f'])
@@ -301,15 +384,24 @@ def main():
         promotes_outputs=['f:mean', 'f:variance', 'f:mean_plus_var']
     )
     
-    prob.driver = om.pyOptSparseDriver(optimizer='SLSQP')
+    # Use SNOPT and disable reports
+    prob.driver = om.pyOptSparseDriver(optimizer='SNOPT')
+    prob.driver.options['print_results'] = False
+    
     prob.model.add_design_var('x', lower=-2, upper=3)
     prob.model.add_design_var('y', lower=-2, upper=3)
     prob.model.add_objective('f:mean_plus_var')
     
     prob.setup()
+    
+    # Disable OpenMDAO report generation
+    prob.set_solver_print(level=0)
+    
     prob.set_val('x', 0.0)
     prob.set_val('y', 0.0)
-    interface.set_vals(prob, variables, run_matrix)
+    
+    # Use interface.set_vals WITHOUT deterministic flag for robust optimization
+    interface.set_vals(prob, variables, run_matrix, deterministic=False)
     
     prob.run_driver()
     
@@ -317,20 +409,25 @@ def main():
     y_rob = prob.get_val('y')[0]
     
     # Get f value at robust point with mean parameters for comparison
-    prob.set_val('a1', [a1_mean])
-    prob.set_val('a2', [a2_mean])
-    prob.set_val('a3', [a3_mean])
+    # Re-run with deterministic=True to get f at mean values
+    interface.set_vals(prob, variables, run_matrix, deterministic=True)
     prob.run_model()
     f_rob = prob.get_val('f')[0]
     
+    print(f"Optimal point: x = {x_rob:.3f}, y = {y_rob:.3f}")
+    print(f"Objective value at means: f = {f_rob:.3f}")
+    
     # ========== POST-OPTIMALITY UQ ==========
-    print("\nPost-optimality UQ...")
+    print("\n" + "-"*40)
+    print("POST-OPTIMALITY UQ")
+    print("-"*40)
+    
     f_det_mc = monte_carlo_uq(x_det, y_det)
     f_rob_mc = monte_carlo_uq(x_rob, y_rob)
     
     # ========== RESULTS ==========
     print("\n" + "="*60)
-    print("RESULTS")
+    print("RESULTS SUMMARY")
     print("="*60)
     print(f"Deterministic: x={x_det:.3f}, y={y_det:.3f}, f={f_det:.1f}")
     print(f"  Post-opt: μ={np.mean(f_det_mc):.1f}, σ²={np.var(f_det_mc):.1f}")
@@ -350,7 +447,7 @@ def main():
     }
     create_plots(results, script_dir)
     
-    print(f"\nRuntime: {time.time()-start_time:.1f}s")
+    print(f"\nTotal runtime: {time.time()-start_time:.1f}s")
 
 
 if __name__ == '__main__':
