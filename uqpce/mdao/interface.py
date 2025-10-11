@@ -34,10 +34,10 @@ def initialize(input_file: str='input.yaml', matrix_file: str='run_matrix.dat', 
         cil, cih = pce.confidence_interval()
 
     return (
-        pce._matrix.var_basis_sys_eval, pce._matrix.norm_sq, 
-        pce._pbox.var_basis_resamp.astype(float), pce._pbox.aleat_samps, 
-        pce._pbox.epist_samps, X.shape[0], pce.order, pce.variables, 
-        pce.significance, pce._X
+        pce._matrix.var_basis_sys_eval, pce._matrix.norm_sq,
+        pce._pbox.var_basis_resamp.astype(float), pce._pbox.aleat_samps,
+        pce._pbox.epist_samps, X.shape[0], pce.order, pce.variables,
+        pce.significance, pce._X, pce._matrix.model_matrix
     )
 
 def set_vals(prob: om.Problem, uncert_var_list: np.ndarray, run_matrix: np.ndarray, deterministic: bool=False):
