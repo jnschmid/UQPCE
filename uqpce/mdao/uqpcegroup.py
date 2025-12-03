@@ -8,6 +8,7 @@ from uqpce.mdao.resamplecomp import ResampleComp
 from uqpce.mdao.variancecomp import VarianceComp
 from uqpce.mdao.cdf.cdfgroup import CDFGroup
 from uqpce.mdao.meanplusvarcomp import MeanPlusVarComp
+from uqpce.mdao.sobolcomp import SobolComp
 
 class UQPCEGroup(om.Group):
     """
@@ -61,8 +62,19 @@ class UQPCEGroup(om.Group):
             desc='Reference scale for 0 of the sample data'
         )
         self.options.declare(
-            'sample_ref', types=(list, None, int, float), default=None, 
+            'sample_ref', types=(list, None, int, float), default=None,
             desc='Reference scale for 1 of the sample data'
+        )
+        self.options.declare(
+            'model_matrix', types=(np.ndarray, type(None)), default=None,
+            desc='Interaction matrix for computing Sobol indices. '
+                 'Shape: (n_terms, n_vars). Entry [i,j] indicates if variable j '
+                 'appears in PCE term i. Required if compute_sobols=True.'
+        )
+        self.options.declare(
+            'compute_sobols', types=bool, default=False,
+            desc='Whether to compute Sobol sensitivity indices. '
+                 'If True, model_matrix must be provided.'
         )
 
     def setup(self):
@@ -129,10 +141,28 @@ class UQPCEGroup(om.Group):
             )
 
             self.add_subsystem(
-                f'{resp_subsys_name}_mean_plus_var_comp', MeanPlusVarComp(), 
-                promotes_inputs=[('mean', f'{resp}:mean'),('variance', f'{resp}:variance')], 
-                promotes_outputs=[('mean_plus_var', f'{resp}:mean_plus_var')] 
+                f'{resp_subsys_name}_mean_plus_var_comp', MeanPlusVarComp(),
+                promotes_inputs=[('mean', f'{resp}:mean'),('variance', f'{resp}:variance')],
+                promotes_outputs=[('mean_plus_var', f'{resp}:mean_plus_var')]
             )
+
+            # Add Sobol sensitivity component if requested
+            if self.options['compute_sobols']:
+                model_matrix = self.options['model_matrix']
+                if model_matrix is None:
+                    raise ValueError(
+                        'model_matrix must be provided when compute_sobols=True'
+                    )
+
+                self.add_subsystem(
+                    f'{resp_subsys_name}_sobol_comp',
+                    SobolComp(norm_sq=self.options['norm_sq'], model_matrix=model_matrix),
+                    promotes_inputs=[('matrix_coeffs', f'{resp}:matrix_coeffs')],
+                    promotes_outputs=[
+                        ('sobols', f'{resp}:sobols'),
+                        ('total_sobols', f'{resp}:total_sobols')
+                    ]
+                )
 
             if tail == 'lower' or tail == 'both':
                 self.add_subsystem(

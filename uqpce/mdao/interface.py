@@ -9,7 +9,7 @@ import openmdao.api as om
 
 
 def initialize(input_file: str='input.yaml', matrix_file: str='run_matrix.dat', order: Union[None, int]=None):
- 
+
     var_dict, settings = read_input_file(input_file)
     if 'plot' in settings.keys():
         settings.pop('plot')
@@ -34,11 +34,49 @@ def initialize(input_file: str='input.yaml', matrix_file: str='run_matrix.dat', 
         cil, cih = pce.confidence_interval()
 
     return (
-        pce._matrix.var_basis_sys_eval, pce._matrix.norm_sq, 
-        pce._pbox.var_basis_resamp.astype(float), pce._pbox.aleat_samps, 
-        pce._pbox.epist_samps, X.shape[0], pce.order, pce.variables, 
+        pce._matrix.var_basis_sys_eval, pce._matrix.norm_sq,
+        pce._pbox.var_basis_resamp.astype(float), pce._pbox.aleat_samps,
+        pce._pbox.epist_samps, X.shape[0], pce.order, pce.variables,
         pce.significance, pce._X
     )
+
+def initialize_dict(
+        input_file: str='input.yaml', matrix_file: str='run_matrix.dat',
+        order: Union[None, int]=None):
+
+    var_dict, settings = read_input_file(input_file)
+    if 'plot' in settings.keys():
+        settings.pop('plot')
+    if 'verbose' in settings.keys():
+        settings.pop('verbose')
+
+    if order is not None:
+        settings['order'] = order
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        pce = PCE(outputs=False, plot=False, verbose=False, **settings)
+
+    for key, value in var_dict.items():
+        pce.add_variable(**value)
+
+    X = np.loadtxt(matrix_file, ndmin=2)
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        pce.fit(X, np.zeros(X.shape[0]))
+        cil, cih = pce.confidence_interval()
+
+    init_dict = {
+        'var_basis': pce._matrix.var_basis_sys_eval,
+        'norm_sq': pce._matrix.norm_sq, 'order': pce.order,
+        'resampled_var_basis': pce._pbox.var_basis_resamp.astype(float),
+        'aleatory_cnt': pce._pbox.aleat_samps, 'variables': pce.variables,
+        'epistemic_cnt': pce._pbox.epist_samps, 'resp_cnt': X.shape[0],
+        'significance': pce.significance, 'run_matrix': pce._X,
+        'model_matrix': pce._matrix.model_matrix
+    }
+    return init_dict
 
 def set_vals(prob: om.Problem, uncert_var_list: np.ndarray, run_matrix: np.ndarray, deterministic: bool=False):
     if not deterministic:

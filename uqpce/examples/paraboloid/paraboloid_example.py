@@ -15,24 +15,24 @@ if __name__ == '__main__':
     #                   Setting up for UQPCE and robust design
     #---------------------------------------------------------------------------
     (
-        var_basis, norm_sq, resampled_var_basis, 
-        aleatory_cnt, epistemic_cnt, resp_cnt, order, variables, 
+        var_basis, norm_sq, resampled_var_basis,
+        aleatory_cnt, epistemic_cnt, resp_cnt, order, variables,
         sig, run_matrix
     ) = interface.initialize(input_file, matrix_file)
 
     prob = om.Problem()
 
     prob.model.add_subsystem(
-        'parab', 
-        Paraboloid(vec_size=resp_cnt), 
-        promotes_inputs=['uncerta', 'uncertb', 'desx', 'desy'], 
+        'parab',
+        Paraboloid(vec_size=resp_cnt),
+        promotes_inputs=['uncerta', 'uncertb', 'desx', 'desy'],
         promotes_outputs=['f_abxy']
     )
 
     prob.model.add_subsystem(
         'func',
         UQPCEGroup(
-            significance=sig, var_basis=var_basis, norm_sq=norm_sq, 
+            significance=sig, var_basis=var_basis, norm_sq=norm_sq,
             resampled_var_basis=resampled_var_basis, tail='upper',
             epistemic_cnt=epistemic_cnt, aleatory_cnt=aleatory_cnt,
             uncert_list=['f_abxy'], tanh_omega=5e-4
