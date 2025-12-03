@@ -32,7 +32,8 @@ dependencies = [
     "scipy",
     "sympy",
     "openmdao",
-    "mpi4py"
+    "mpi4py",
+    "jax"
 ]
 
 [project.optional-dependencies]
