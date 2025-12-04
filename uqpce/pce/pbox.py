@@ -110,6 +110,8 @@ class ProbabilityBoxes:
         Creates resample values for aleatory variables
         """
         if self.aleat_var_count == 0:
+            # Still create the attribute with 0 columns for consistency
+            self.aleat_resample = np.zeros([self.aleat_samps, 0])
             return
         
         if self.rank == 0 and self.verbose:
