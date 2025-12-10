@@ -13,6 +13,7 @@ class Distribution(Enum):
     GAMMA = auto()
     LOGNORMAL = auto()
     CONTINUOUS_EPISTEMIC = auto()
+    GAUSSIAN_MIXTURE = auto() 
 
     DISCRETE = auto()
     DISCRETE_UNIFORM = auto()
