@@ -1,0 +1,30 @@
+Variable 0:
+  name: a1
+  distribution: gaussian_mixture
+  weights: [0.3, 0.5, 0.2]
+  means: [-2.0, 0.0, 3.0] 
+  stdevs: [0.3, 0.5, 0.4]
+  type: aleatory
+
+Variable 1:
+  name: a2
+  distribution: uniform
+  interval_low: -2.0
+  interval_high: 2.0
+  type: aleatory
+
+Variable 2:
+  name: a3
+  distribution: normal
+  mean: 0
+  stdev: 1
+  type: aleatory
+
+Settings:
+  order: 2
+  backend: Agg
+  conv_threshold_percent: 0.00000005
+  aleat_samp_size: 1000000
+  track_convergence_off: True
+  significance: 0.05
+  over_samp_ratio: 5
