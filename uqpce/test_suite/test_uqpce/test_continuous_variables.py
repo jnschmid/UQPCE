@@ -12,7 +12,7 @@ import numpy as np
 from uqpce.pce.variables.continuous import (
     ContinuousVariable, UniformVariable, NormalVariable, BetaVariable,
     ExponentialVariable, GammaVariable, EpistemicVariable, LognormalVariable,
-    GaussianMixtureVariable 
+    GaussianMixtureVariable
 )
 from uqpce.pce.enums import UncertaintyType
 from uqpce.pce.pce import PCE
@@ -237,7 +237,7 @@ class TestGeneralVariable(unittest.TestCase):
 
     def test__norm_sq(self):
         """
-        Testing the general Variable _norm_sq to ensure that the three 
+        Testing the general Variable _norm_sq to ensure that the three
         different calculation attempts all give the same correct answer.
         """
         i = 2
@@ -276,7 +276,7 @@ class TestGeneralVariable(unittest.TestCase):
 
     def test__invert(self):
         """
-        Testing the general Variable _invert to ensure that the correct 
+        Testing the general Variable _invert to ensure that the correct
         equation is found when _invert is called.
         """
         manager = Manager()
@@ -296,7 +296,7 @@ class TestGeneralVariable(unittest.TestCase):
 
     def test__calc_cdf(self):
         """
-        Testing the general Variable _calc_cdf to ensure that the correct 
+        Testing the general Variable _calc_cdf to ensure that the correct
         cumulative density function is found when _calc_cdf is called.
         """
         manager = Manager()
@@ -366,7 +366,7 @@ class TestUniformVariable(unittest.TestCase):
 
     def test_standardize_points(self):
         """
-        Testing the UniformVariable standardize_points and insuring that the 
+        Testing the UniformVariable standardize_points and insuring that the
         values follow a standardized distribution.
         """
         p_val_min = 0.05
@@ -411,7 +411,7 @@ class TestUniformVariable(unittest.TestCase):
 
     def test_unstandardize_points(self):
         """
-        Testing the UniformVariable unstandardize_points and insuring that the 
+        Testing the UniformVariable unstandardize_points and insuring that the
         values follow an unstandardized distribution.
         """
         p_val_min = 0.05
@@ -544,7 +544,7 @@ class TestUniformVariable(unittest.TestCase):
 
     def test_get_mean(self):
         """
-        Tests that the mean for the distributions is consistent with the true 
+        Tests that the mean for the distributions is consistent with the true
         mean value.
         """
         cnt = 100000
@@ -604,7 +604,7 @@ class TestNormalVariable(unittest.TestCase):
 
     def test_standardize_points(self):
         """
-        Testing the NormalVariable standardize_points and insuring that the 
+        Testing the NormalVariable standardize_points and insuring that the
         values follow a standardized distribution.
         """
         p_val_min = 0.05
@@ -643,7 +643,7 @@ class TestNormalVariable(unittest.TestCase):
 
     def test_unstandardize_points(self):
         """
-        Testing the NormalVariable unstandardize_points and insuring that the 
+        Testing the NormalVariable unstandardize_points and insuring that the
         values follow an unstandardized distribution.
         """
         p_val_min = 0.05
@@ -814,7 +814,7 @@ class TestNormalVariable(unittest.TestCase):
 
     def test_get_mean(self):
         """
-        Tests that the mean for the distributions is consistent with the true 
+        Tests that the mean for the distributions is consistent with the true
         mean value.
         """
         cnt = 100000
@@ -926,7 +926,7 @@ class TestBetaVariable(unittest.TestCase):
 
     def test_unstandardize_points(self):
         """
-        Testing the NormalVariable unstandardize_points and insuring that the 
+        Testing the NormalVariable unstandardize_points and insuring that the
         values follow an unstandardized distribution.
         """
         p_val_min = 0.05
@@ -1114,7 +1114,7 @@ class TestBetaVariable(unittest.TestCase):
 
     def test_get_mean(self):
         """
-        Tests that the mean for the distributions is consistent with the true 
+        Tests that the mean for the distributions is consistent with the true
         mean value.
         """
         cnt = 100000
@@ -1223,7 +1223,7 @@ class TestExponentialVariable(unittest.TestCase):
 
     def test_unstandardize_points(self):
         """
-        Testing the ExponentialVariable unstandardize_points and insuring that 
+        Testing the ExponentialVariable unstandardize_points and insuring that
         the values follow an unstandardized distribution.
         """
         p_val_min = 0.05
@@ -1365,7 +1365,7 @@ class TestExponentialVariable(unittest.TestCase):
 
     def test_get_norm_sq_val(self):
         """
-        Testing the ExponentialVariable get_norm_sq_val and ensuring that the 
+        Testing the ExponentialVariable get_norm_sq_val and ensuring that the
         norm squared values are correct.
         """
         norm_sq_count = 6
@@ -1386,7 +1386,7 @@ class TestExponentialVariable(unittest.TestCase):
 
     def test_get_mean(self):
         """
-        Tests that the mean for the distributions is consistent with the true 
+        Tests that the mean for the distributions is consistent with the true
         mean value.
         """
         cnt = 100000
@@ -1451,7 +1451,7 @@ class TestGammaVariable(unittest.TestCase):
 
     def test_standardize_points(self):
         """
-        Testing the GammaVariable standardize_points and insuring that the 
+        Testing the GammaVariable standardize_points and insuring that the
         values follow a standardized distribution.
         """
         p_val_min = 0.05
@@ -1496,7 +1496,7 @@ class TestGammaVariable(unittest.TestCase):
 
     def test_unstandardize_points(self):
         """
-        Testing the GammaVariable unstandardize_points and insuring that 
+        Testing the GammaVariable unstandardize_points and insuring that
         the values follow an unstandardized distribution.
         """
         p_val_min = 0.05
@@ -1653,7 +1653,7 @@ class TestGammaVariable(unittest.TestCase):
 
     def test_get_mean(self):
         """
-        Tests that the mean for the distributions is consistent with the true 
+        Tests that the mean for the distributions is consistent with the true
         mean value.
         """
         cnt = 100000
@@ -1732,7 +1732,7 @@ class TestLognormalVariable(unittest.TestCase):
 
     def test_standardize_points(self):
         """
-        Testing the LognormalVariable standardize_points and insuring that the 
+        Testing the LognormalVariable standardize_points and insuring that the
         values follow a standardized distribution.
         """
         p_val_min = 0.05
@@ -1764,7 +1764,7 @@ class TestLognormalVariable(unittest.TestCase):
 
     def test_unstandardize_points(self):
         """
-        Testing the LognormalVariable unstandardize_points and insuring that 
+        Testing the LognormalVariable unstandardize_points and insuring that
         the values follow an unstandardized distribution.
         """
         stand_samps = np.array([
@@ -1775,7 +1775,7 @@ class TestLognormalVariable(unittest.TestCase):
             4.69280396, 1.99387692, 0.12926983, 1.39719524, 0.52652384,
             0.80051761, 0.29218316, 1.22856675, 2.27361575, 0.6103148
         ])
-        
+
         unstand_points_calc = self.lognorm_var.unstandardize_points(stand_samps)
         self.assertTrue(
             np.isclose(unstand_points_calc, self.lognorm_var.vals).all(),
@@ -1847,13 +1847,13 @@ class TestLognormalVariable(unittest.TestCase):
         x0 = symbols('x0')
 
         true_var_orthopoly_vect = Matrix(np.array([
-            [1], [x0 - 1.64872127070013], 
+            [1], [x0 - 1.64872127070013],
             [x0**2 - 16.6641830310416*x0 + 20.0855369231878],
-            [x0**3 - 135.31507722011*x0**2 + 1648.47511102698*x0 
+            [x0**3 - 135.31507722011*x0**2 + 1648.47511102698*x0
              - 1808.04241445994],
-            [x0**4 - 1032.96614856745*x0**3 + 102184.366510724*x0**2 
+            [x0**4 - 1032.96614856745*x0**3 + 102184.366510724*x0**2
              - 1132784.93005544*x0 + 1202604.28416708],
-            [x0**5 - 7722.66195136508*x0**4 + 5831835.8566439*x0**3 
+            [x0**5 - 7722.66195136508*x0**4 + 5831835.8566439*x0**3
              - 524965134.031249*x0**2 + 5633036046.13447*x0 - 5910522063.03488],
         ]))
 
@@ -1889,22 +1889,22 @@ class TestLognormalVariable(unittest.TestCase):
         norm_sq_count = 6
 
         true_norm_sq = np.array([
-            1, 4.6707743, 1629.3091942, 34101168.748002, 40259083404382.54, 
+            1, 4.6707743, 1629.3091942, 34101168.748002, 40259083404382.54,
             2625599016180850360320.
         ])
         norm_sq = np.zeros(norm_sq_count)
 
         for i in range(norm_sq_count):
             norm_sq[i] = self.lognorm_var.get_norm_sq_val(i)
-    
+
         self.assertTrue(
-            np.isclose(true_norm_sq, norm_sq, rtol=0, atol=1e-6).all(),
+            np.isclose(true_norm_sq, norm_sq, rtol=1e-12, atol=1e-12).all(),
             msg='LognormalVariable get_norm_sq_val is not correct'
         )
 
     def test_get_mean(self):
         """
-        Tests that the mean for the distributions is consistent with the true 
+        Tests that the mean for the distributions is consistent with the true
         mean value.
         """
         cnt = 10_000_000
@@ -1927,7 +1927,7 @@ class TestLognormalVariable(unittest.TestCase):
 
 class TestGaussianMixtureVariable(unittest.TestCase):
     """Comprehensive test suite for GaussianMixtureVariable."""
-    
+
     def test_single_component_standard_normal(self):
         """Test that single-component GMM with mean=0, std=1 uses Hermite polynomials."""
         gmm = GaussianMixtureVariable(
@@ -1936,18 +1936,18 @@ class TestGaussianMixtureVariable(unittest.TestCase):
             stdevs=[1.0],
             order=3
         )
-        
+
         # Should be detected as standard normal
         self.assertTrue(gmm.is_standard_normal)
-        
+
         # Check statistics
         self.assertAlmostEqual(gmm.mean, 0.0, places=10)
         self.assertAlmostEqual(gmm.stdev, 1.0, places=10)
-        
+
         # Should use Hermite polynomials with factorial norm_sq
         expected_norm_sq = [1, 1, 2, 6]  # 0!, 1!, 2!, 3!
         np.testing.assert_array_equal(gmm.norm_sq_vals[:4], expected_norm_sq)
-    
+
     def test_single_component_shifted_scaled(self):
         """Test single-component GMM with non-zero mean and non-unit stdev."""
         gmm = GaussianMixtureVariable(
@@ -1956,24 +1956,24 @@ class TestGaussianMixtureVariable(unittest.TestCase):
             stdevs=[2.0],
             order=2
         )
-        
+
         # Should NOT be detected as standard normal
         self.assertFalse(gmm.is_standard_normal)
-        
+
         # Check statistics
         self.assertAlmostEqual(gmm.mean, 3.0, places=10)
         self.assertAlmostEqual(gmm.stdev, 2.0, places=10)
-        
+
         # Test standardization
         test_vals = np.array([1.0, 3.0, 5.0, 7.0])
         expected_std = np.array([-1.0, 0.0, 1.0, 2.0])
         std_vals = gmm.standardize_points(test_vals)
         np.testing.assert_array_almost_equal(std_vals, expected_std)
-        
+
         # Test unstandardization
         unstd_vals = gmm.unstandardize_points(std_vals)
         np.testing.assert_array_almost_equal(unstd_vals, test_vals)
-    
+
     def test_bimodal_symmetric(self):
         """Test symmetric bimodal GMM."""
         gmm = GaussianMixtureVariable(
@@ -1982,39 +1982,39 @@ class TestGaussianMixtureVariable(unittest.TestCase):
             stdevs=[0.5, 0.5],
             order=2
         )
-        
+
         # Mean should be 0 due to symmetry
         self.assertAlmostEqual(gmm.mean, 0.0, places=10)
-        
+
         # Variance calculation: E[X^2] - (E[X])^2
         # E[X^2] = 0.5 * (0.25 + 4) + 0.5 * (0.25 + 4) = 4.25
         # E[X] = 0
         # Var = 4.25
         expected_std = np.sqrt(4.25)
         self.assertAlmostEqual(gmm.stdev, expected_std, places=10)
-    
+
     def test_multimodal_asymmetric(self):
         """Test asymmetric multimodal GMM."""
         weights = [0.3, 0.5, 0.2]
         means = [-1.0, 0.0, 2.0]
         stdevs = [0.3, 0.5, 0.4]
-        
+
         gmm = GaussianMixtureVariable(
             weights=weights,
             means=means,
             stdevs=stdevs,
             order=2
         )
-        
+
         # Calculate expected statistics
         expected_mean = np.sum(np.array(weights) * np.array(means))
         e_x_squared = np.sum(np.array(weights) * (np.array(stdevs)**2 + np.array(means)**2))
         expected_var = e_x_squared - expected_mean**2
         expected_std = np.sqrt(expected_var)
-        
+
         self.assertAlmostEqual(gmm.mean, expected_mean, places=10)
         self.assertAlmostEqual(gmm.stdev, expected_std, places=10)
-    
+
     def test_weight_normalization(self):
         """Test that weights are normalized to sum to 1."""
         # Provide unnormalized weights
@@ -2024,11 +2024,11 @@ class TestGaussianMixtureVariable(unittest.TestCase):
             stdevs=[1.0, 1.0, 1.0],
             order=1
         )
-        
+
         # Weights should be normalized
         np.testing.assert_almost_equal(np.sum(gmm.weights), 1.0)
         np.testing.assert_array_almost_equal(gmm.weights, [0.2, 0.3, 0.5])
-    
+
     def test_input_validation(self):
         """Test input validation for GMM parameters."""
         # Test mismatched lengths
@@ -2039,7 +2039,7 @@ class TestGaussianMixtureVariable(unittest.TestCase):
                 stdevs=[1.0, 1.0],
                 order=1
             )
-        
+
         # Test negative weights
         with self.assertRaises(VariableInputError):
             GaussianMixtureVariable(
@@ -2048,7 +2048,7 @@ class TestGaussianMixtureVariable(unittest.TestCase):
                 stdevs=[1.0, 1.0],
                 order=1
             )
-        
+
         # Test negative standard deviations
         with self.assertRaises(VariableInputError):
             GaussianMixtureVariable(
@@ -2057,7 +2057,7 @@ class TestGaussianMixtureVariable(unittest.TestCase):
                 stdevs=[1.0, -1.0],
                 order=1
             )
-        
+
         # Test empty components
         with self.assertRaises(VariableInputError):
             GaussianMixtureVariable(
@@ -2066,7 +2066,7 @@ class TestGaussianMixtureVariable(unittest.TestCase):
                 stdevs=[],
                 order=1
             )
-    
+
     def test_orthogonal_polynomials_standard_normal(self):
         """Test that standard normal GMM produces Hermite polynomials."""
         gmm = GaussianMixtureVariable(
@@ -2075,9 +2075,9 @@ class TestGaussianMixtureVariable(unittest.TestCase):
             stdevs=[1.0],
             order=3
         )
-        
+
         x = symbols('x0')
-        
+
         # Expected Hermite polynomials (physicists' convention)
         expected = {
             0: 1,
@@ -2085,13 +2085,13 @@ class TestGaussianMixtureVariable(unittest.TestCase):
             2: x**2 - 1,
             3: x**3 - 3*x
         }
-        
+
         for i in range(4):
             poly = gmm.var_orthopoly_vect[i]
             expected_poly = expected[i]
             diff = expand(poly - expected_poly)
             self.assertEqual(diff, 0, f"Hermite polynomial H_{i} incorrect")
-    
+
     def test_orthogonal_polynomials_multimodal(self):
         """Test that multimodal GMM produces orthogonal polynomials via Gram-Schmidt."""
         gmm = GaussianMixtureVariable(
@@ -2100,36 +2100,36 @@ class TestGaussianMixtureVariable(unittest.TestCase):
             stdevs=[0.3, 0.5, 0.4],
             order=2
         )
-        
+
         # Should use Gram-Schmidt, not Hermite
         self.assertFalse(gmm.is_standard_normal)
-        
+
         # Verify orthogonality empirically
         n_samples = 100000
         X = gmm.generate_samples(n_samples, standardize=True)
-        
+
         x = symbols('x0')
         for i in range(3):
             for j in range(i+1, 3):
                 poly_i = lambdify(x, gmm.var_orthopoly_vect[i], 'numpy')
                 poly_j = lambdify(x, gmm.var_orthopoly_vect[j], 'numpy')
-                
+
                 # Inner product should be near zero
                 inner_prod = np.mean(poly_i(X) * poly_j(X))
                 self.assertAlmostEqual(inner_prod, 0.0, places=1,
                                      msg=f"Polynomials P_{i} and P_{j} not orthogonal")
-        
+
         # Verify norm squared values
         for i in range(3):
             poly_i = lambdify(x, gmm.var_orthopoly_vect[i], 'numpy')
             empirical_norm_sq = np.mean(poly_i(X)**2)
             expected_norm_sq = gmm.norm_sq_vals[i]
-            
+
             # Should match within 10% (accounting for sampling variance)
             rel_error = abs(empirical_norm_sq - expected_norm_sq) / expected_norm_sq
             self.assertLess(rel_error, 0.1,
                           msg=f"Norm squared for P_{i} doesn't match")
-    
+
     def test_generate_samples(self):
         """Test that generate_samples produces correct distribution."""
         gmm = GaussianMixtureVariable(
@@ -2138,26 +2138,26 @@ class TestGaussianMixtureVariable(unittest.TestCase):
             stdevs=[0.5, 1.0],
             order=1
         )
-        
+
         # Generate many samples
         n_samples = 100000
         samples = gmm.generate_samples(n_samples, standardize=False)
-        
+
         # Check mean and std are approximately correct
         sample_mean = np.mean(samples)
         sample_std = np.std(samples)
-        
+
         self.assertAlmostEqual(sample_mean, gmm.mean, places=1)
         self.assertAlmostEqual(sample_std, gmm.stdev, places=1)
-        
+
         # Check standardized samples
         std_samples = gmm.generate_samples(n_samples, standardize=True)
         std_mean = np.mean(std_samples)
         std_std = np.std(std_samples)
-        
+
         self.assertAlmostEqual(std_mean, 0.0, places=1)
         self.assertAlmostEqual(std_std, 1.0, places=1)
-    
+
     def test_resample(self):
         """Test resample method for PCE internal use."""
         gmm = GaussianMixtureVariable(
@@ -2166,17 +2166,17 @@ class TestGaussianMixtureVariable(unittest.TestCase):
             stdevs=[0.5, 0.5],
             order=2
         )
-        
+
         samples = gmm.resample(1000)
-        
+
         # Check that samples are standardized
         self.assertAlmostEqual(np.mean(samples), 0, places=1)
         self.assertAlmostEqual(np.std(samples), 1, places=1)
-        
+
         # They should be within reasonable bounds but not forced to extremes
         self.assertLess(np.max(np.abs(samples)), 5)  # Should be within ~5 sigma
         self.assertGreater(np.max(np.abs(samples)), 2)  # Should have some spread
-        
+
     def test_get_norm_sq_val(self):
         """Test norm squared value retrieval."""
         gmm = GaussianMixtureVariable(
@@ -2185,13 +2185,13 @@ class TestGaussianMixtureVariable(unittest.TestCase):
             stdevs=[1.0],
             order=3
         )
-        
+
         # For standard normal, should be factorials
         self.assertEqual(gmm.get_norm_sq_val(0), 1)  # 0!
         self.assertEqual(gmm.get_norm_sq_val(1), 1)  # 1!
         self.assertEqual(gmm.get_norm_sq_val(2), 2)  # 2!
         self.assertEqual(gmm.get_norm_sq_val(3), 6)  # 3!
-        
+
         # Test out of bounds
         with self.assertRaises(ValueError):
             gmm.get_norm_sq_val(10)
@@ -2199,7 +2199,7 @@ class TestGaussianMixtureVariable(unittest.TestCase):
 
 class TestGMMWithPCE(unittest.TestCase):
     """Test GMM integration with PCE."""
-    
+
     def test_pce_with_standard_normal_gmm(self):
         """Test PCE with standard normal GMM."""
         pce = PCE(order=2, outputs=False, verbose=False, plot=False)
@@ -2209,19 +2209,19 @@ class TestGMMWithPCE(unittest.TestCase):
             means=[0.0],
             stdevs=[1.0]
         )
-        
+
         # Function: f(x) = x^2
         n_train = 100
         X_train = pce.sample(n_train)
         y_train = X_train[:, 0]**2
-        
+
         pce.fit(X_train, y_train)
-        
+
         # For f(x) = x^2 with standard normal:
         # E[X^2] = 1, Var[X^2] = E[X^4] - (E[X^2])^2 = 3 - 1 = 2
         self.assertAlmostEqual(pce.mean[0], 1.0, places=1)
         self.assertAlmostEqual(pce.variance[0], 2.0, places=0)
-    
+
 
     def test_pce_with_bimodal_gmm(self):
         """Test PCE with bimodal GMM."""
@@ -2232,40 +2232,40 @@ class TestGMMWithPCE(unittest.TestCase):
             means=[-1.0, 1.0],
             stdevs=[0.3, 0.3]
         )
-        
+
         # Linear function: f(x) = 2*x + 1
         n_train = 100
         X_train = pce.sample(n_train)
         y_train = 2 * X_train[:, 0] + 1
-        
+
         pce.fit(X_train, y_train)
-        
+
         # E[2X + 1] = 2*E[X] + 1 = 2*0 + 1 = 1
         self.assertAlmostEqual(pce.mean[0], 1.0, places=1)
-        
+
         # Test prediction - FIX: Need to get the right shape
         X_test = np.array([[-1], [0], [1]])
         y_pred_raw = pce.predict(X_test)
-        
+
         # Handle the output shape correctly
         if isinstance(y_pred_raw, tuple):
             y_pred = y_pred_raw[0].flatten()
         else:
             y_pred = y_pred_raw.flatten()
-            
+
         y_true = 2 * X_test[:, 0] + 1
-        
+
         # Make sure shapes match
-        self.assertEqual(len(y_pred), len(y_true), 
+        self.assertEqual(len(y_pred), len(y_true),
                         f"Shape mismatch: pred {y_pred.shape} vs true {y_true.shape}")
-        
+
         # Now test values
         np.testing.assert_array_almost_equal(y_pred, y_true, decimal=0)  # Reduced precision
-    
+
     def test_pce_multivariate_with_gmm(self):
         """Test multivariate PCE with GMM variables."""
         pce = PCE(order=2, outputs=False, verbose=False, plot=False)  # Increased order
-        
+
         # Variable 1: Standard normal GMM
         pce.add_variable(
             distribution='GAUSSIAN_MIXTURE',
@@ -2273,7 +2273,7 @@ class TestGMMWithPCE(unittest.TestCase):
             means=[0.0],
             stdevs=[1.0]
         )
-        
+
         # Variable 2: Bimodal GMM
         pce.add_variable(
             distribution='GAUSSIAN_MIXTURE',
@@ -2281,34 +2281,34 @@ class TestGMMWithPCE(unittest.TestCase):
             means=[-1.0, 1.0],
             stdevs=[0.5, 0.5]
         )
-        
+
         # Function: f(x1, x2) = x1 + 0.5*x2
         n_train = 200  # Increased sample size
         X_train = pce.sample(n_train)
         y_train = X_train[:, 0] + 0.5 * X_train[:, 1]
-        
+
         pce.fit(X_train, y_train)
-        
+
         # E[X1 + 0.5*X2] = E[X1] + 0.5*E[X2] = 0 + 0.5*0 = 0
         self.assertAlmostEqual(pce.mean[0], 0.0, places=1)
-        
+
         # Check that the model fits well
         y_pred_raw = pce.predict(X_train)
         if isinstance(y_pred_raw, tuple):
             y_pred = y_pred_raw[0].flatten()
         else:
             y_pred = y_pred_raw.flatten()
-            
+
         # Check R² score
         residuals = y_train - y_pred
         ss_res = np.sum(residuals**2)
         ss_tot = np.sum((y_train - np.mean(y_train))**2)
-        
+
         if ss_tot > 0:
             r2 = 1 - (ss_res / ss_tot)
         else:
             r2 = 1.0 if ss_res < 1e-10 else 0.0
-            
+
         self.assertGreater(r2, 0.9, f"Model should fit training data well (R²={r2:.3f})")
 
 if __name__ == '__main__':
