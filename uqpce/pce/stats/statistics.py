@@ -23,9 +23,9 @@ def calc_R_sq(var_basis, matrix_coeffs, responses):
     Inputs: var_basis- evaluated variable basis
             matrix_coeffs- matrix coefficients
             responses- vector of responses
-            
+
     Calculates the R squared statistic for the given system.
-    
+
     Design and Analysis of Experiments (8th) by Douglas Montgomery (pg. 464)
     """
     thresh = 1e-8
@@ -39,14 +39,14 @@ def calc_R_sq(var_basis, matrix_coeffs, responses):
 
     R_sq = 1 - (err_sum_sq / tot_sum_sq)  # equation for R^2
 
-    if R_sq > 1:
-        if R_sq > 1 + thresh:
+    if (R_sq > 1).any():
+        if (R_sq > 1 + thresh).any():
             warn(
                 f'R squared value was {R_sq}. Check the variable basis and '
                 'responses.'
             )
 
-        R_sq = 1.0
+        R_sq[(R_sq > 1.0) and (R_sq > 1 + thresh)] = 1.0
 
     return R_sq
 
@@ -56,9 +56,9 @@ def calc_R_sq_adj(var_basis, matrix_coeffs, responses):
     Inputs: var_basis- evaluated variable basis
             matrix_coeffs- matrix coefficients
             responses- vector of responses
-    
+
     Calculates the adjusted R squared statistic for the given system.
-    
+
     Design and Analysis of Experiments (8th) by Douglas Montgomery (pg. 464)
     """
     act_model_size, min_model_size = var_basis.shape
@@ -78,7 +78,7 @@ def calc_PRESS_res(var_basis, responses):
     """
     Inputs: var_basis- evaluated variable basis
             responses- the responses
-    
+
     Calculate the PRESS residual for a given model.
     """
     resp_count = len(responses)
@@ -124,11 +124,11 @@ def calc_pred_conf_int(var_basis, matrix_coeffs, responses, signif, var_basis_ve
             matrix_coeffs- the matrix coefficients
             responses- the responses
             signif- significance of the model (i.e. 95% conf int has signif=0.05)
-            var_basis_ver- the variable basis whose mean confidence interval 
+            var_basis_ver- the variable basis whose mean confidence interval
             will be evaluated against the model variable basis
-    
+
     Calcualtes the prediction confidence interval for a given point.
-    
+
     Design and Analysis of Experiments (8th) by Douglas Montgomery (pg. 469)
     """
     const = 1
@@ -163,11 +163,11 @@ def calc_mean_conf_int(var_basis, matrix_coeffs, responses, signif, var_basis_ve
             matrix_coeffs- the matrix coefficients
             responses- the responses
             signif- significance of the model (i.e. 95% conf int has signif=0.05)
-            var_basis_ver- the variable basis whose mean confidence interval 
+            var_basis_ver- the variable basis whose mean confidence interval
             will be evaluated against the model variable basis
-    
+
     Calculates the confidence interval on the mean response.
-    
+
     Design and Analysis of Experiments (8th) by Douglas Montgomery (pg. 468)
     """
     var_basis_ver = np.atleast_2d(var_basis_ver)
@@ -234,7 +234,7 @@ def calc_coeff_conf_int(var_basis, matrix_coeffs, responses, signif):
             matrix_coeffs- the matrix coefficients
             responses- the responses
             signif- significance of the model (i.e. 95% conf int has signif=0.05)
-    
+
     Design and Analysis of Experiments (8th) by Douglas Montgomery (pg. 467)
     """
     resp_count, term_count = var_basis.shape
@@ -262,13 +262,13 @@ def calc_var_conf_int(matrix_coeffs, coeff_uncert, norm_sq):
     Inputs: matrix_coeffs- an array of the matrix coefficients
             coeff_uncert- the uncertainty of each coefficient
             norm_sq- the norm squared of the model
-    
-    Calculates the bounds on the variance from the calculated bounds on the 
-    matrix coefficients. This equation was created by replacing the matrix 
-    coefficients in the variance equation with the lower and upper bounds on the 
+
+    Calculates the bounds on the variance from the calculated bounds on the
+    matrix coefficients. This equation was created by replacing the matrix
+    coefficients in the variance equation with the lower and upper bounds on the
     matrix coefficients.
-    
-    Equation derived from method of calculating variance and the matrix 
+
+    Equation derived from method of calculating variance and the matrix
     coefficient uncertainties.
     """
     coeff_mag = np.abs(matrix_coeffs).reshape(-1,)
@@ -317,10 +317,10 @@ def get_sobol_bounds(matrix_coeffs, sobols, coeff_uncert, norm_sq):
             sobols- sobol sensitivities
             coeff_uncert- uncertainties of the coefficients
             norm_sq- the norm squared
-    
+
     Calculates the bounds on the sobols from the coefficient uncertainty.
-    
-    Equation derived from method of calculating sobols and the matrix 
+
+    Equation derived from method of calculating sobols and the matrix
     coefficient uncertainties.
     """
     threshold = 1e-4  # sobol significance level
@@ -419,9 +419,9 @@ def calc_error_variance(var_basis, matrix_coeffs, responses):
     Inputs: var_basis- evaluated variable basis
             matrix_coeffs- the matrix coefficients
             responses- the responses
-    
+
     Calculates the unbiased estimator of the error variance.
-    
+
     Design and Analysis of Experiments (8th) by Douglas Montgomery (pg. 453)
     """
     # sigma squared eq (Design and Analysis of Experiments, pg 453)
@@ -459,9 +459,9 @@ def calc_error_sum_of_sq(var_basis, matrix_coeffs, responses):
     Inputs: var_basis- the variable basis
             matrix_coeffs- the matrix coefficients
             responses- the responses
-    
+
     Calculates the error sum of squares.
-    
+
     Design and Analysis of Experiments (8th) by Douglas Montgomery (pg. 453)
     """
     resp_mat = np.matmul(responses.T, responses)
@@ -473,10 +473,10 @@ def calc_error_sum_of_sq(var_basis, matrix_coeffs, responses):
 def calc_total_sum_of_sq(var_basis, responses):
     """
     Inputs: var_basis- the variable basis
-            responses- the responses 
-            
+            responses- the responses
+
     Calculates the total sum of squares.
-    
+
     Design and Analysis of Experiments (8th) by Douglas Montgomery (pg. 463)
     """
     act_model_size = var_basis.shape[0]
@@ -490,9 +490,9 @@ def calc_sum_sq_regr(matrix_coeffs, responses, var_basis):
     Inputs: matrix_coeffs- the matrix coefficients
             responses- the responses
             var_basis- the variable basis
-    
+
     Calculates the regression sum of squares.
-    
+
     Design and Analysis of Experiments (8th) by Douglas Montgomery (pg. 463)
     """
     resp_cnt = len(responses)
@@ -508,12 +508,12 @@ def calc_sum_sq_regr(matrix_coeffs, responses, var_basis):
 def calc_mean_sq_err(responses, matrix_coeffs, var_basis):
     """
     Inputs: responses- the actual responses from the analysis tool
-            matrix_coeffs - the coefficients for the terms from the 
+            matrix_coeffs - the coefficients for the terms from the
             MatrixSystem
             var_basis- the varible basis with values plugged in
-            
+
     Calculates the mean squared error for the given matrices.
-    
+
     Equation from original UQPCE version.
     """
     mean_sq_err_thresh = 1e-15
@@ -555,17 +555,17 @@ def calc_mean_sq_err(responses, matrix_coeffs, var_basis):
 
 def calc_partial_F(regr_sum_sq_all, regr_sum_sq, mean_sq_err_all, deg_free):
     """
-    Inputs: regr_sum_sq_all- the regression sum of squares value for the model 
+    Inputs: regr_sum_sq_all- the regression sum of squares value for the model
             with the larger number of terms
-            regr_sum_sq- the regression sum of squares value for the model 
+            regr_sum_sq- the regression sum of squares value for the model
             with the smaller number of terms
-            mean_sq_err_all- the mean squared error for the model with the 
+            mean_sq_err_all- the mean squared error for the model with the
             larger number of terms
             deg_free- the number of degrees of freedom
-            
+
     Calculates the partial F statistic used in stepwise regression.
-    
-    "Applied Statistics and Probablity for Engineers" (4th) by Douglas 
+
+    "Applied Statistics and Probablity for Engineers" (4th) by Douglas
     Montgomery (pg. 486)
     """
     partial_F = ((regr_sum_sq_all - regr_sum_sq) / deg_free) / mean_sq_err_all
@@ -608,7 +608,7 @@ def calc_term_count(order, var_count):
     """
     Inputs: order- the order of the model
             var_count- the number of variables in the model
-    
+
     Calculates the number of terms in a model.
     """
     term_count = int(
@@ -623,7 +623,7 @@ def calc_min_responses(order, var_count):
     """
     Inputs: order- the order of the model
             var_count- the number of variables in the model
-            
+
     Calculates the minimum responses required for a model.
     """
     return calc_term_count(order, var_count) + 1
