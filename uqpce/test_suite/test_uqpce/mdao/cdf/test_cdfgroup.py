@@ -19,12 +19,14 @@ class TestCDFGroup(unittest.TestCase):
         self.cil = self.sig/2
         self.cih = 1-self.cil
         a, b = 2.31, 0.627
-        self.beta_samples = beta.rvs(a, b, size=aleat_cnt)
+        thresh = 1e-8
+        pcnts = np.linspace(thresh, 1-thresh, num=aleat_cnt)
+        self.beta_samples = beta(a, b).ppf(pcnts)
 
-        self.expon_samples = expon.rvs(size=aleat_cnt)
+        self.expon_samples = expon.ppf(pcnts)
 
         n, p = 5, 0.5
-        self.nbinom_samples = nbinom.rvs(n, p, size=aleat_cnt)
+        self.nbinom_samples = nbinom(n, p).ppf(pcnts)
 
     def test_beta(self):
         alpha = 0.05
