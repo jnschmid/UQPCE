@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 from scipy.stats import beta, nbinom, expon
 
 from uqpce.mdao.cdf.cdfgroup import CDFGroup
-from uqpce.mdao.cdf.cdfresidcomp import tanh_activation
+from openmdao.jax import act_tanh
 
 tanh_omega = 1e-6
-aleat_cnt = 75_000
+aleat_cnt = 500_000
 
 class TestCDFGroup(unittest.TestCase):
     def setUp(self):
@@ -76,14 +76,14 @@ class TestCDFGroup(unittest.TestCase):
         x = np.sort(self.beta_samples)
 
         plt.figure()
-        act = tanh_activation(x, omega=1e-12, z=ci_lower, a=1, b=0)
+        act = act_tanh(x, mu=1e-12, z=ci_lower, a=1, b=0)
         plt.plot(x, act, '-o')
         plt.plot([ci_lower, ci_lower], [act.min(), act.max()], 'k--')
         plt.title('Beta Distribution')
         # plt.savefig('beta_lower_ci')
-        
+
         plt.figure()
-        act = tanh_activation(x, omega=1e-12, z=ci_upper, a=1, b=0)
+        act = act_tanh(x, mu=1e-12, z=ci_upper, a=1, b=0)
         plt.plot(x, act, '-o')
         plt.plot([ci_upper, ci_upper], [act.min(), act.max()], 'k--')
         plt.title('Beta Distribution')
@@ -141,14 +141,14 @@ class TestCDFGroup(unittest.TestCase):
         x = np.sort(self.expon_samples)
 
         plt.figure()
-        act = tanh_activation(x, omega=tanh_omega, z=ci_lower, a=1, b=0)
+        act = act_tanh(x, mu=tanh_omega, z=ci_lower, a=1, b=0)
         plt.plot(x, act, '-o')
         plt.plot([ci_lower, ci_lower], [act.min(), act.max()], 'k--')
         plt.title('Exponential Distribution')
         # plt.savefig('expon_lower_ci')
-        
+
         plt.figure()
-        act = tanh_activation(x, omega=tanh_omega, z=ci_upper, a=1, b=0)
+        act = act_tanh(x, mu=tanh_omega, z=ci_upper, a=1, b=0)
         plt.plot(x, act, '-o')
         plt.plot([ci_upper, ci_upper], [act.min(), act.max()], 'k--')
         plt.title('Exponential Distribution')
@@ -172,7 +172,7 @@ class TestCDFGroup(unittest.TestCase):
             'upper',
             CDFGroup(
                 alpha=alpha, tail='upper', vec_size=aleat_cnt, tanh_omega=tanh_omega,
-                epistemic_cnt=1, aleatory_cnt=aleat_cnt, 
+                epistemic_cnt=1, aleatory_cnt=aleat_cnt,
                 sample_ref0=float(self.nbinom_samples.min()), sample_ref=float(self.nbinom_samples.max())
             ), promotes_inputs=['*']
         )
@@ -205,14 +205,14 @@ class TestCDFGroup(unittest.TestCase):
         x = np.sort(self.nbinom_samples)
 
         plt.figure()
-        act = tanh_activation(x, omega=tanh_omega, z=ci_lower, a=1, b=0)
+        act = act_tanh(x, mu=tanh_omega, z=ci_lower, a=1, b=0)
         plt.plot(x, act, '-o')
         plt.plot([ci_lower, ci_lower], [act.min()-0.1, act.max()+0.1], 'k--')
         plt.title('Binomial Distribution')
         # plt.savefig('nbinom_lower_ci')
-        
+
         plt.figure()
-        act = tanh_activation(x, omega=tanh_omega, z=ci_upper, a=1, b=0)
+        act = act_tanh(x, mu=tanh_omega, z=ci_upper, a=1, b=0)
         plt.plot(x, act, '-o')
         plt.plot([ci_upper, ci_upper], [act.min(), act.max()], 'k--')
         plt.title('Binomial Distribution')
@@ -271,14 +271,14 @@ class TestCDFGroup(unittest.TestCase):
         x = np.sort(samps)
 
         plt.figure()
-        act = tanh_activation(x, omega=tanh_omega, z=ci_lower, a=1, b=0)
+        act = act_tanh(x, mu=tanh_omega, z=ci_lower, a=1, b=0)
         plt.plot(x, act, '-o')
         plt.plot([ci_lower, ci_lower], [act.min(), act.max()], 'k--')
         plt.title('Combined Distributions')
         # plt.savefig('combined_lower_ci')
-        
+
         plt.figure()
-        act = tanh_activation(x, omega=tanh_omega, z=ci_upper, a=1, b=0)
+        act = act_tanh(x, mu=tanh_omega, z=ci_upper, a=1, b=0)
         plt.plot(x, act, '-o')
         plt.plot([ci_upper, ci_upper], [act.min(), act.max()], 'k--')
         plt.title('Combined Distributions')
@@ -338,14 +338,14 @@ class TestCDFGroup(unittest.TestCase):
         x = np.sort(samps)
 
         plt.figure()
-        act = tanh_activation(x, omega=1e-12, z=ci_lower, a=1, b=0)
+        act = act_tanh(x, mu=1e-12, z=ci_lower, a=1, b=0)
         plt.plot(x, act, '-o')
         plt.plot([ci_lower, ci_lower], [act.min(), act.max()], 'k--')
         plt.title('High-Order Combined Distributions')
         # plt.savefig('high_order_lower_ci')
-        
+
         plt.figure()
-        act = tanh_activation(x, omega=1e-12, z=ci_upper, a=1, b=0)
+        act = act_tanh(x, mu=1e-12, z=ci_upper, a=1, b=0)
         plt.plot(x, act, '-o')
         plt.plot([ci_upper, ci_upper], [act.min(), act.max()], 'k--')
         plt.title('High-Order Combined Distributions')
