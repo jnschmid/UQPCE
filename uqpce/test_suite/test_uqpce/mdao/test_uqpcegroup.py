@@ -30,9 +30,9 @@ class TestUQPCEGroup(unittest.TestCase):
         ])
         resampled_var_basis = np.zeros([total_cnt, 3])
         resampled_var_basis[:,0] = 1
-        resampled_var_basis[:,1] = np.random.uniform(low=-2, high=2, size=total_cnt)
-        resampled_var_basis[:,2] = np.random.uniform(low=-1, high=1, size=total_cnt)
-        
+        resampled_var_basis[:,1] = np.linspace(-2, 2, num=total_cnt)
+        resampled_var_basis[:,2] = np.linspace(-1, 1, num=total_cnt)
+
         prob = om.Problem(reports=False)
         prob.model.add_subsystem(
             'parab', paraboloid.Paraboloid(vec_size=6),
@@ -42,9 +42,9 @@ class TestUQPCEGroup(unittest.TestCase):
             'comp',
             UQPCEGroup(
                 uncert_list=['f_abxy'],
-                var_basis=var_basis, norm_sq=norm_sq, significance=sig, 
+                var_basis=var_basis, norm_sq=norm_sq, significance=sig,
                 resampled_var_basis=resampled_var_basis, tail='both',
-                aleatory_cnt=aleat_cnt, epistemic_cnt=epist_cnt, sample_ref0=[100], 
+                aleatory_cnt=aleat_cnt, epistemic_cnt=epist_cnt, sample_ref0=[100],
                 sample_ref=[125]
             ),
             promotes_inputs=['*'], promotes_outputs=['*']
@@ -74,12 +74,12 @@ class TestUQPCEGroup(unittest.TestCase):
             [('mean', 'responses')]['rel error'][0]
         )
         self.assertTrue(
-            np.isclose(coeff_err_coeff, 0), 
+            np.isclose(coeff_err_coeff, 0),
             msg='CoefficientComp derivative (\'matrix_coeffs\', \'responses\') '
             'is not correct'
         )
         self.assertTrue(
-            np.isclose(coeff_err_mean, 0), 
+            np.isclose(coeff_err_mean, 0),
             msg='CoefficientComp derivative (\'mean\', \'responses\') '
             'is not correct'
         )
@@ -90,7 +90,7 @@ class TestUQPCEGroup(unittest.TestCase):
             [('resampled_responses', 'matrix_coeffs')]['rel error'][0]
         )
         self.assertTrue(
-            np.isclose(resamp_err_resamp, 0), 
+            np.isclose(resamp_err_resamp, 0),
             msg='ResampleComp derivative (\'resampled_responses\', '
             '\'matrix_coeffs\') is not correct'
         )
@@ -101,7 +101,7 @@ class TestUQPCEGroup(unittest.TestCase):
             [('variance', 'matrix_coeffs')]['abs error'][0]
         )
         self.assertTrue(
-            np.isclose(var_err_coeff, 0), 
+            np.isclose(var_err_coeff, 0),
             msg='VarianceComp derivative (\'variance\', \'matrix_coeffs\') '
             'is not correct'
         )
@@ -125,19 +125,19 @@ class TestUQPCEGroup(unittest.TestCase):
         )
 
         self.assertTrue(
-            np.isclose(lower_cdf_samp, 0), 
+            np.isclose(lower_cdf_samp, 0),
             msg='CDFGroup derivative (\'ci_resid\', \'samples\') is not correct'
         )
         self.assertTrue(
-            np.isclose(upper_cdf_samp, 0), 
+            np.isclose(upper_cdf_samp, 0),
             msg='CDFGroup derivative (\'ci_resid\', \'samples\') is not correct'
         )
         self.assertTrue(
-            np.isclose(lower_cdf_fci, 0), 
+            np.isclose(lower_cdf_fci, 0),
             msg='CDFGroup derivative (\'ci_resid\', \'f_ci\') is not correct'
         )
         self.assertTrue(
-            np.isclose(upper_cdf_fci, 0), 
+            np.isclose(upper_cdf_fci, 0),
             msg='CDFGroup derivative (\'ci_resid\', \'f_ci\') is not correct'
         )
 
