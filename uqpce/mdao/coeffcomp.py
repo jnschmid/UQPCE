@@ -15,16 +15,16 @@ class CoefficientsComp(om.ExplicitComponent):
         self._var_basis_T = var_basis.T
         self._basis_transform = np.dot(self._var_basis_T, var_basis)
 
-        self.add_input('responses', shape=(resp_cnt,))
-        self.add_output('matrix_coeffs', shape=(term_cnt,))
-        self.add_output('mean', shape=(1,))
+        self.add_input('responses', shape=(resp_cnt,), units_by_conn=True)
+        self.add_output('matrix_coeffs', shape=(term_cnt,), copy_units='responses')
+        self.add_output('mean', shape=(1,), copy_units='responses')
 
         self.declare_partials(
-            of='matrix_coeffs', wrt='responses', 
+            of='matrix_coeffs', wrt='responses',
             val=np.dot(np.linalg.inv(self._basis_transform), self._var_basis_T)
         )
         self.declare_partials(
-            of='mean', wrt='responses', 
+            of='mean', wrt='responses',
             val=np.dot(np.linalg.inv(self._basis_transform), self._var_basis_T)[0,:]
         )
 

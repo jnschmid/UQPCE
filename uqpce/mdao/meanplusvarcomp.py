@@ -5,9 +5,9 @@ class MeanPlusVarComp(om.ExplicitComponent):
 
     def setup(self):
 
-        self.add_input('mean', shape=(1,))
-        self.add_input('variance', shape=(1,))
-        self.add_output('mean_plus_var', shape=(1,))
+        self.add_input('mean', shape=(1,), units_by_conn=True, units=None)
+        self.add_input('variance', shape=(1,), units_by_conn=True, units=None)
+        self.add_output('mean_plus_var', shape=(1,), copy_units='mean')
 
         self.declare_partials(of='mean_plus_var', wrt='mean', val=1)
         self.declare_partials(of='mean_plus_var', wrt='variance', val=1)

@@ -11,8 +11,8 @@ class VarianceComp(om.ExplicitComponent):
         norm_sq = self.options['norm_sq']
         term_cnt = len(norm_sq)
 
-        self.add_input('matrix_coeffs', shape=(term_cnt,))
-        self.add_output('variance', shape=(1,))
+        self.add_input('matrix_coeffs', shape=(term_cnt,), units_by_conn=True)
+        self.add_output('variance', shape=(1,), copy_units='matrix_coeffs')
 
     def compute(self, inputs, outputs):
         matrix_coeffs = inputs['matrix_coeffs']
@@ -33,7 +33,7 @@ class VarianceComp(om.ExplicitComponent):
     def compute_partials(self, inputs, partials, discrete_inputs=None):
         matrix_coeffs = inputs['matrix_coeffs']
         norm_sq = self.options['norm_sq']
-        
+
         partials['variance', 'matrix_coeffs'][0,0] = 0
         partials['variance', 'matrix_coeffs'][0,1:] = 2 * matrix_coeffs[1:] * norm_sq[1:].T
 

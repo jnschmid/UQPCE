@@ -42,10 +42,10 @@ class CDFResidComp(om.JaxExplicitComponent):
         aleat_cnt = self.options['aleatory_cnt']
         epist_cnt = self.options['epistemic_cnt']
 
-        self.add_input('samples', shape=(epist_cnt*aleat_cnt,))
-        self.add_input('f_ci', shape=(epist_cnt,))
+        self.add_input('samples', shape=(epist_cnt*aleat_cnt,), units_by_conn=True)
+        self.add_input('f_ci', shape=(epist_cnt,), copy_units='samples')
 
-        self.add_output('ci_resid', shape=(epist_cnt,))
+        self.add_output('ci_resid', shape=(epist_cnt,), copy_units='samples')
 
         self._sig = (1-alpha/2) if self.options['tail'] == 'upper' else alpha/2
 

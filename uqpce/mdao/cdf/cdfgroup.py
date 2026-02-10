@@ -52,11 +52,14 @@ class CDFGroup(om.Group):
         )
 
         bal = self.add_subsystem(
-            'bal', om.BalanceComp(val=jnp.ones([epist_cnt])),
+            'bal', om.BalanceComp(
+                val=jnp.ones([epist_cnt]), units_by_conn=True,
+            ),
             promotes_inputs=['ci_resid'], promotes_outputs=['f_ci']
         )
         bal.add_balance(
-            name='f_ci', lhs_name='ci_resid', val=jnp.ones([epist_cnt])
+            name='f_ci', lhs_name='ci_resid', val=jnp.ones([epist_cnt]),
+            rhs_kwargs={'copy_units':'samples'}, lhs_kwargs={'copy_units':'samples'}
         )
 
         self.nonlinear_solver = om.NewtonSolver(solve_subsystems=False)

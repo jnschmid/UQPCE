@@ -11,11 +11,11 @@ class ResampleComp(om.ExplicitComponent):
         resamp_var_basis = self.options['resampled_var_basis']
         resamp_resp_cnt, term_cnt = resamp_var_basis.shape
 
-        self.add_input('matrix_coeffs', shape=(term_cnt,))
-        self.add_output('resampled_responses', shape=(resamp_resp_cnt,))
+        self.add_input('matrix_coeffs', shape=(term_cnt,), units_by_conn=True)
+        self.add_output('resampled_responses', shape=(resamp_resp_cnt,), copy_units='matrix_coeffs')
 
         self.declare_partials(
-            of='resampled_responses', wrt='matrix_coeffs', 
+            of='resampled_responses', wrt='matrix_coeffs',
             val=resamp_var_basis
         )
 
@@ -39,7 +39,7 @@ if __name__ == '__main__':
             [ 1.00000000e+00, -7.19942644e-01, 4.53624248e-01,]
         ])
     prob.model.add_subsystem(
-        'comp', ResampleComp(resampled_var_basis=resampled_var_basis), 
+        'comp', ResampleComp(resampled_var_basis=resampled_var_basis),
         promotes_inputs=['*'], promotes_outputs=['*']
     )
 
