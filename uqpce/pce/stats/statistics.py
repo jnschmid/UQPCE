@@ -184,48 +184,17 @@ def calc_mean_conf_int(var_basis, matrix_coeffs, responses, signif, var_basis_ve
     t_val = t_stat(deg_of_free).ppf(1 - signif / 2)  # high CI bound
 
     resamp_size = len(var_basis_ver)
+    approx_mean = np.zeros([resamp_size, 1])
+    pred_uncert = np.zeros([resamp_size, 1])
 
-    approx_mean_tot = np.zeros(resamp_size)
-    pred_uncert_tot = np.zeros(resamp_size)
-
-    base = resamp_size // size
-    rem = resamp_size % size
-    rank_l_rem = (rank < rem)
-    beg = base * rank + (rank >= rem) * rem + rank_l_rem * rank
-    count = base + rank_l_rem
-    end = beg + count
-
-    ranks = np.arange(0, size, dtype=int)
-    ranks_l_rem = (ranks < rem)
-    seq_count = ranks_l_rem + base
-    seq_disp = base * ranks + (ranks >= rem) * rem + ranks_l_rem * ranks
-
-    approx_mean = np.zeros(count)
-    pred_uncert = np.zeros(count)
-
-    for i in range(beg, end):
+    for i in range(resamp_size):
         x_i = var_basis_ver[i]
         mult_matrices = np.matmul(np.matmul(x_i.T, inverse_mat), x_i)
 
-        idx = i - beg
-        approx_mean[idx] = np.matmul(x_i, matrix_coeffs)  # y_hat(x)
-        pred_uncert[idx] = t_val * np.sqrt(err_var * mult_matrices)
+        approx_mean[i] = np.matmul(x_i, matrix_coeffs)  # y_hat(x)
+        pred_uncert[i] = t_val * np.sqrt(err_var * mult_matrices)
 
-    if comm:
-        comm.Allgatherv(
-            [approx_mean, count, MPI_DOUBLE],
-            [approx_mean_tot, seq_count, seq_disp, MPI_DOUBLE]
-        )
-
-        comm.Allgatherv(
-            [pred_uncert, count, MPI_DOUBLE],
-            [pred_uncert_tot, seq_count, seq_disp, MPI_DOUBLE]
-        )
-    else:
-        approx_mean_tot = approx_mean
-        pred_uncert_tot = pred_uncert
-
-    return approx_mean_tot, pred_uncert_tot
+    return approx_mean, pred_uncert
 
 
 def calc_coeff_conf_int(var_basis, matrix_coeffs, responses, signif):
@@ -375,12 +344,12 @@ def get_sobol_bounds(matrix_coeffs, sobols, coeff_uncert, norm_sq):
         lower_sobols[i_sc] = (
             (L_coeffs[i] ** 2 * norm_sq[i])
             / np.sum(norm_sq[1:] * L_alt_matrix_coeffs_sq)  # lower_sigma_sq
-        )
+        )[0]
 
         upper_sobols[i_sc] = (
             (H_coeffs[i] ** 2 * norm_sq[i])
             / np.sum(norm_sq[1:] * H_alt_matrix_coeffs_sq)  # upper_sigma_sq
-        )
+        )[0]
 
         lower_sobol_wrong = (lower_sobols[i_sc] > sobols[i_decr])
         upper_sobol_wrong = (upper_sobols[i_sc] < sobols[i_decr])
