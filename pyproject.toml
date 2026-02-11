@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "numpy>=1.9.2"]
+requires = ["hatchling", "numpy>=2.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -7,11 +7,15 @@ name = "uqpce"
 dynamic = ["version"]
 description = "Uncertainty Quantification with Polynomial Chaos Expansion"
 readme = "README.md"
-requires-python = ">=3.8"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
 authors = [
     { name = "UQPCE Team"},
 ]
 keywords = [
+    "uq",
+    "uncertainty",
     "uncertainty quantification",
     "design under uncertainty"
 ]
@@ -26,14 +30,15 @@ classifiers = [
     "Programming Language :: Python :: 3"
 ]
 dependencies = [
-    "numpy",
+    "numpy>=2.0",
     "PyYAML",
     "matplotlib",
-    "scipy",
+    "scipy>=1.13",
     "sympy",
-    "openmdao",
+    "openmdao>=3.39.0",
     "mpi4py",
-    "jax"
+    "jax>=0.4.30",
+    "dymos"  # Required for example in documentation and corresponding tests
 ]
 
 [project.optional-dependencies]
@@ -45,6 +50,9 @@ docs = [
     "jupyter",
     "jupyter-book==0.15.1"
 ]
+
+[project.urls]
+Documentation = "https://nasa.github.io/UQPCE/"
 
 [tool.hatch.version]
 path = "uqpce/__init__.py"
