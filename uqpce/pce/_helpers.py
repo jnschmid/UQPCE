@@ -26,7 +26,7 @@ except:
 def switch_backend(backend):
     """
     Inputs: backend- the backend to change to
-    
+
     A wrapper for the matplotlib method that switches the backend.
     """
     plt.switch_backend(backend)
@@ -35,11 +35,11 @@ def warn(message):
     print(message, file=sys.stderr)
 
 def user_function(user_func_str: str, X: np.ndarray):
-    """ 
+    """
     Inputs: user_func_str- a string with which responses will be generated
-            var_list- the list of variables (which contain the values used 
+            var_list- the list of variables (which contain the values used
             to create the responses)
-    
+
     Generates responses for an function based on the corresponding variable
     values.
     """
@@ -69,7 +69,7 @@ def term_count(var_cnt, order):
 def get_str_vars(matrix):
     """
     Inputs: matrix- the model matrix of the different interraction terms
-    
+
     Generates strings that represent the sobol interactions. (i.e. 'x0**2')
     """
     length, width = matrix.shape
@@ -97,13 +97,13 @@ def create_total_sobols(var_count, matrix, sobols):
     Inputs: var_count- number of variables
             matrix- the interaction matrix
             sobols- the previously-calculated sobol indices for each interaction
-            
-    Using the existing sobol indices, the total sobol index for each variable 
+
+    Using the existing sobol indices, the total sobol index for each variable
     is created. The string for the output is created.
     """
     if not (matrix.shape[0]-1 == sobols.shape[0]):
         sobols = sobols.reshape(matrix.shape[0]-1, -1)
-    
+
     mat_size = len(matrix)
     total_sobols = np.zeros([var_count, sobols.shape[1]])
 
@@ -119,8 +119,8 @@ def check_directory(directory, verbose):
     """
     Inputs: directory- the directory for the graphs to be place
             verbose- the verbose flag
-    
-    Checks to see if the graph directory exists. If it doesn't exit, the 
+
+    Checks to see if the graph directory exists. If it doesn't exit, the
     folder is created.
     """
 
@@ -155,15 +155,15 @@ def check_directory(directory, verbose):
 
 def evaluate_points_verbose(func, begin, total_samps, var_list, attr):
     """
-    Inputs: func- the lambda function used to generate the data from the 
+    Inputs: func- the lambda function used to generate the data from the
             evaluation vector
             begin- the index to start at in the `attr` array
             total_samps- the total number of samples to generate
             var_list- list of the variables
-            attr- the attribute that holds the values to be used in the 
+            attr- the attribute that holds the values to be used in the
             evaluation vector
-            
-    From a specified attirbute, a lambda function is used to generate 
+
+    From a specified attirbute, a lambda function is used to generate
     values that populate matrix.
     """
 
@@ -200,16 +200,16 @@ def evaluate_points(func, X):
     """
     func :
         the lambda function used to generate the data from the evaluation vector
-    X : 
+    X :
         the standardized run matrix to evaluate
-    
-    Identical to evaluate_points_verbose, but doesn't check for a verbose 
+
+    Identical to evaluate_points_verbose, but doesn't check for a verbose
     option every iteration. This version also deals with indexing only part of
     eval_vect.
     """
 
     term_count = (
-        len(func(X[0,:])) if len(func(X[0,:])) > len(func(X[0,:])[0]) 
+        len(func(X[0,:])) if len(func(X[0,:])) > len(func(X[0,:])[0])
         else len(func(X[0,:])[0])
     )
 
@@ -219,7 +219,7 @@ def evaluate_points(func, X):
     #     term_count = term_count[1]  # len(func(np.zeros(var_count)))
     # else:
     #     term_count = 1
-    
+
     matrix = np.zeros([total_samps, term_count])
 
     for i in range(total_samps):
@@ -233,7 +233,7 @@ def calc_difference(array_1, array_2):
     """
     Inputs: array_1- the array being subtracted from
             array_2- the array being subtracted
-    
+
     Finds difference between the two input arrays.
     """
     return array_1 - array_2
@@ -242,7 +242,7 @@ def calc_difference(array_1, array_2):
 def calc_mean_err(error):
     """
     Inputs: error- an array of error values
-    
+
     Calculates the mean of the error.
     """
     return np.mean(np.abs(error), axis=0)
@@ -253,7 +253,7 @@ def uniform_hypercube(low, high, samp_size=1):
     Inputs: low- the low bound of the hypercube
             high- the high bound of the hypercube
             samp_size- the number of samples to generate
-    
+
     Generates a uniformly-distributed Latin Hypercube.
     """
     intervals = np.linspace(low, high, samp_size + 1)
@@ -272,7 +272,7 @@ def solve_coeffs(var_basis, responses):
     """
     Inputs: var_basis- the variable basis matrix
             responses- the array of responses
-    
+
     Uses the matrix system to solve for the matrix coefficients.
     """
     cond_num_thresh = 20
@@ -292,7 +292,7 @@ def solve_coeffs(var_basis, responses):
 
     if (responses == 0).all():
         return np.zeros(var_basis.shape[1])
-    
+
     matrix_coeffs = solve(basis_transform, np.dot(var_basis_T, responses))
 
     return matrix_coeffs
@@ -302,7 +302,7 @@ def generate_sample_set(var_list, sample_count=1):
     """
     Inputs: var_list- the list of varibles
             sample_count- the number of samples to generate
-    
+
     Creates and returns a random, standardized value for each variable present.
     """
     # generate random samples for each variable
@@ -324,8 +324,8 @@ def unstandardize_set(var_list, sample_array):
     """
     Inputs: var_list- list of variables
             sample_array- array with one sample corresponding to each variable
-    
-    Takes an array of standardized values, unstandardizes them, and returns the 
+
+    Takes an array of standardized values, unstandardizes them, and returns the
     array of unstandardized values.
     """
     var_count, iters = sample_array.shape
@@ -341,8 +341,8 @@ def standardize_set(var_list, sample_array):
     """
     Inputs: var_list- list of variables
             sample_array- array with one sample corresponding to each variable
-    
-    Takes an array of unstandardized values, standardizes them, and returns the 
+
+    Takes an array of unstandardized values, standardizes them, and returns the
     array of standardized values.
     """
     var_count, iters = sample_array.shape
@@ -359,12 +359,12 @@ def check_error_trends(var_list, error, order, thresh=0.5, shift=2):
     Inputs: var_list- list of variables
             error- the array of error
             order- the order to start the error checking at
-            thresh- the minimum pearsonr value the correlation must be at to get 
+            thresh- the minimum pearsonr value the correlation must be at to get
             flagged as an error correlation
-            shift- how many orders higher than input `order` to test for 
+            shift- how many orders higher than input `order` to test for
             correlations
-    
-    Returns the names of the variables that have a pearsonr correlation higher 
+
+    Returns the names of the variables that have a pearsonr correlation higher
     than 'thresh.'
     """
     i = 0
@@ -396,7 +396,7 @@ def check_error_trends(var_list, error, order, thresh=0.5, shift=2):
 def check_error_magnitude(error):
     """
     Inputs: error- the array of error
-    
+
     Checks for large outliers in the error.
     """
     const = 3
@@ -420,7 +420,7 @@ def calc_sobols(matrix_coeffs, norm_sq):
     """
     Inputs: matrix_coeffs- the matrix coefficient of the model
             norm_sq- the norm squared of the model
-    
+
     Returns the sobols from the matrix coefficients and norm squared.
     """
     min_model_size = len(matrix_coeffs)
@@ -436,12 +436,11 @@ def calc_sobols(matrix_coeffs, norm_sq):
     prod = (norm_sq[1:] * matrix_coeffs_sq)
     sigma_sq = np.sum(prod)
 
-    sobols = np.zeros(min_model_size - 1)
+    sobols = np.zeros([1, min_model_size - 1,])
 
     for i in range(1, min_model_size):
-        sobols[i - 1] = (
+        sobols[:, i - 1] = (
             (matrix_coeffs[i] ** 2 * norm_sq[i]) / sigma_sq
         )
 
     return sobols
-

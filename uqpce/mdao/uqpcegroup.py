@@ -14,8 +14,8 @@ class UQPCEGroup(om.Group):
     """
     Class definition for the UQPCEGroup.
 
-    A UQPCEGroup object builds a Polynomial Chaos Expansion (PCE) model for an 
-    arbitrary response. This object outputs statistics for the mean, variance, 
+    A UQPCEGroup object builds a Polynomial Chaos Expansion (PCE) model for an
+    arbitrary response. This object outputs statistics for the mean, variance,
     and confidence interval on a given response.
     """
 
@@ -36,7 +36,7 @@ class UQPCEGroup(om.Group):
             desc='The evaluated resampled variable basis of the PCE model.'
         )
         self.options.declare(
-            'norm_sq', allow_none=False, 
+            'norm_sq', allow_none=False,
             desc='The norm squared for the user\'s PCE model.'
         )
         self.options.declare(
@@ -44,21 +44,21 @@ class UQPCEGroup(om.Group):
             desc='The tail from the two-sided uncertainty bound to be calculated.'
         )
         self.options.declare(
-            'significance', types=float, default=0.05, 
+            'significance', types=float, default=0.05,
             desc='The significance level of the uncertain problem (i.e. '
             'significance=0.05 corresponds to a 95% confidence interval).'
         )
         self.options.declare(
-            'aleatory_cnt', types=int, allow_none=False, 
+            'aleatory_cnt', types=int, allow_none=False,
             desc='The number of aleatory samples used to resample the surrogate'
         )
         self.options.declare(
-            'epistemic_cnt', types=int, allow_none=False, 
+            'epistemic_cnt', types=int, allow_none=False,
             desc='The number of epistemic samples used to resample the surrogate'
         )
         self.options.declare('tanh_omega', types=(list, float, int), default=1e-6)
         self.options.declare(
-            'sample_ref0', types=(list, None, int, float), default=None, 
+            'sample_ref0', types=(list, None, int, float), default=None,
             desc='Reference scale for 0 of the sample data'
         )
         self.options.declare(
@@ -116,9 +116,9 @@ class UQPCEGroup(om.Group):
 
             # Add the system which outputs the matrix coefficients
             self.add_subsystem(
-                f'{resp_subsys_name}_coeff_comp', 
-                CoefficientsComp(var_basis=self.options['var_basis']), 
-                promotes_inputs=[('responses', resp)], 
+                f'{resp_subsys_name}_coeff_comp',
+                CoefficientsComp(var_basis=self.options['var_basis']),
+                promotes_inputs=[('responses', resp)],
                 promotes_outputs=[
                     ('matrix_coeffs', f'{resp}:matrix_coeffs'),
                     ('mean', f'{resp}:mean')
@@ -127,16 +127,16 @@ class UQPCEGroup(om.Group):
 
             # Add the system which outputs resampled responses
             self.add_subsystem(
-                f'{resp_subsys_name}_resamp_comp', 
-                ResampleComp(resampled_var_basis=self.options['resampled_var_basis']), 
-                promotes_inputs=[('matrix_coeffs', f'{resp}:matrix_coeffs')], 
+                f'{resp_subsys_name}_resamp_comp',
+                ResampleComp(resampled_var_basis=self.options['resampled_var_basis']),
+                promotes_inputs=[('matrix_coeffs', f'{resp}:matrix_coeffs')],
                 promotes_outputs=[('resampled_responses', f'{resp}:resampled_responses')]
             )
 
             # Add the system which outputs variance
             self.add_subsystem(
-                f'{resp_subsys_name}_var_comp', VarianceComp(norm_sq=self.options['norm_sq']), 
-                promotes_inputs=[('matrix_coeffs', f'{resp}:matrix_coeffs')], 
+                f'{resp_subsys_name}_var_comp', VarianceComp(norm_sq=self.options['norm_sq']),
+                promotes_inputs=[('matrix_coeffs', f'{resp}:matrix_coeffs')],
                 promotes_outputs=[('variance', f'{resp}:variance')]
             )
 
@@ -168,11 +168,11 @@ class UQPCEGroup(om.Group):
                 self.add_subsystem(
                     f'{resp_subsys_name}_lower_cdf_group',
                     CDFGroup(
-                        alpha=alpha, tail='lower', aleatory_cnt=aleatory_cnt, 
+                        alpha=alpha, tail='lower', aleatory_cnt=aleatory_cnt,
                         epistemic_cnt=epistemic_cnt, vec_size=vec_size,
                         sample_ref0=ref0, sample_ref=ref, tanh_omega=om
                     ),
-                    promotes_inputs=[('f_sampled', f'{resp}:resampled_responses')], 
+                    promotes_inputs=[('f_sampled', f'{resp}:resampled_responses')],
                     promotes_outputs=[(out_ci, f'{resp}:ci_lower')]
                 )
 
@@ -180,11 +180,11 @@ class UQPCEGroup(om.Group):
                 self.add_subsystem(
                     f'{resp_subsys_name}_upper_cdf_group',
                     CDFGroup(
-                        alpha=alpha, tail='upper', aleatory_cnt=aleatory_cnt, 
+                        alpha=alpha, tail='upper', aleatory_cnt=aleatory_cnt,
                         epistemic_cnt=epistemic_cnt, vec_size=vec_size,
                         sample_ref0=ref0, sample_ref=ref, tanh_omega=om
                     ),
-                    promotes_inputs=[('f_sampled', f'{resp}:resampled_responses')], 
+                    promotes_inputs=[('f_sampled', f'{resp}:resampled_responses')],
                     promotes_outputs=[(out_ci, f'{resp}:ci_upper')]
                 )
 
@@ -212,8 +212,8 @@ if __name__ == '__main__':
     resampled_var_basis[:,0] = 1
     resampled_var_basis[:,1] = np.random.uniform(low=-2, high=2, size=total_cnt)
     resampled_var_basis[:,2] = np.random.uniform(low=-1, high=1, size=total_cnt)
-    
-    outputs = ['f_abxy'] 
+
+    outputs = ['f_abxy']
 
     prob = om.Problem(reports=False)
 
@@ -226,9 +226,9 @@ if __name__ == '__main__':
         'comp',
         UQPCEGroup(
             uncert_list=outputs,
-            var_basis=var_basis, norm_sq=norm_sq, significance=sig, 
+            var_basis=var_basis, norm_sq=norm_sq, significance=sig,
             resampled_var_basis=resampled_var_basis, tail='both',
-            aleatory_cnt=aleat_cnt, epistemic_cnt=epist_cnt, sample_ref0=[100], 
+            aleatory_cnt=aleat_cnt, epistemic_cnt=epist_cnt, sample_ref0=[100],
             sample_ref=[125]
         ),
         promotes_inputs=['*'], promotes_outputs=['*']
