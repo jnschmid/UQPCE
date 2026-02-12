@@ -47,7 +47,6 @@ jobs:
             OPENMDAO: 'latest'
             DYMOS: 'latest'
             MPI4PY: '4.1'
-            SPHINX: '6.2'
             OPTIONAL: '[docs]'
             PUBLISH_DOCS: 0
 
@@ -136,15 +135,6 @@ jobs:
           echo "Install mpi4py"
           echo "============================================================="
           conda install mpi4py==${{ matrix.MPI4PY }} -q -y
-
-      - name: Install sphinx
-        if: matrix.SPHINX
-        shell: bash -l {0}
-        run: |
-          echo "============================================================="
-          echo "Install sphinx"
-          echo "============================================================="
-          conda install sphinx==${{ matrix.SPHINX }} -q -y
 
       - name: Install UQPCE
         shell: bash -l {0}
