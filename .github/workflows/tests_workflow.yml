@@ -39,7 +39,7 @@ jobs:
           # make sure the latest versions of things don't break the docs
           - NAME: latest
             PY: '3.14'
-            NUMPY: '3.4'
+            NUMPY: '2.4'
             SCIPY: '1.17'
             PYYAML: '6.0'
             JAX: '0.9'
