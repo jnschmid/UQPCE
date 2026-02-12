@@ -40,13 +40,13 @@ jobs:
           # # make sure the latest versions of things don't break the docs
           - NAME: latest
             PY: '3.14'
-            NUMPY: 'latest'
-            SCIPY: 'latest'
-            PYYAML: 'latest'
+            NUMPY: '3.4'
+            SCIPY: '1.17'
+            PYYAML: '6.0'
             JAX: 'latest'
             OPENMDAO: 'latest'
             DYMOS: 'latest'
-            MPI4PY: 'latest'
+            MPI4PY: '4.1'
             OPTIONAL: '[docs]'
             PUBLISH_DOCS: 0
 
