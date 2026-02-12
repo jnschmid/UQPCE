@@ -43,7 +43,7 @@ jobs:
             NUMPY: '3.4'
             SCIPY: '1.17'
             PYYAML: '6.0'
-            JAX: 'latest'
+            JAX: '0.9'
             OPENMDAO: 'latest'
             DYMOS: 'latest'
             MPI4PY: '4.1'
