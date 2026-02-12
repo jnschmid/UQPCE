@@ -42,7 +42,7 @@ jobs:
             PY: '3.14'
             NUMPY: '2.4'
             SCIPY: '1.17'
-            PYYAML: '6.0'
+            PYYAML: '6.0.3'
             JAX: '0.9'
             OPENMDAO: 'latest'
             DYMOS: 'latest'
