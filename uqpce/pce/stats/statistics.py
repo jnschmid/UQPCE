@@ -435,10 +435,8 @@ def calc_error_sum_of_sq(var_basis, matrix_coeffs, responses):
 
     Design and Analysis of Experiments (8th) by Douglas Montgomery (pg. 453)
     """
-    resp_mat = np.matmul(responses.T, responses)
-    coeff_dot_basis = np.matmul(matrix_coeffs.T, var_basis.T)
-
-    return resp_mat - np.matmul(coeff_dot_basis, responses)
+    residuals = responses - np.matmul(var_basis, matrix_coeffs)
+    return np.sum(residuals ** 2, axis=0)
 
 
 def calc_total_sum_of_sq(var_basis, responses):
@@ -450,10 +448,7 @@ def calc_total_sum_of_sq(var_basis, responses):
 
     Design and Analysis of Experiments (8th) by Douglas Montgomery (pg. 463)
     """
-    act_model_size = var_basis.shape[0]
-    resp_mat = np.matmul(responses.T, responses)
-
-    return resp_mat - (np.sum(responses) ** 2 / act_model_size)
+    return np.sum((responses - np.mean(responses, axis=0)) ** 2, axis=0)
 
 
 def calc_sum_sq_regr(matrix_coeffs, responses, var_basis):
