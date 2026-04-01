@@ -316,7 +316,7 @@ class MatrixSystem:
         for idx in range(self.act_model_size):
 
             temp = np.delete(self.var_basis_sys_eval, idx, axis=0)
-            responses = np.delete(self.responses, idx)
+            responses = np.delete(self.responses, idx, axis=0)
             matrix_coeffs = solve_coeffs(temp, responses)
 
             # create a model for each of the subsystems; check model error

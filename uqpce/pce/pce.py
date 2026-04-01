@@ -1126,11 +1126,14 @@ class PCE():
         shift = 5
         spaces = self.sigfigs + shift
 
+        R_sq = np.atleast_1d(R_sq)
+        R_sq_adj = np.atleast_1d(R_sq_adj)
+
         for m in range(self.model_cnt):
             self._stats_str[m] = (# formatting like this so 5 sig figs and aligned
-                f'PRESS statistic:         {f"{float(press_stat[m]):.{self.sigfigs}}":{spaces}s}\n'
-                f'R\u00b2:                      {f"{float(R_sq[m]):.{self.sigfigs}}":{spaces}s}\n'
-                f'R\u00b2 adjusted:             {f"{float(R_sq_adj[m]):.{self.sigfigs}}":{spaces}s}\n\n'
+                f'PRESS statistic:         {f"{float(press_stat.flat[m]):.{self.sigfigs}}":{spaces}s}\n'
+                f'R\u00b2:                      {f"{float(R_sq.flat[m]):.{self.sigfigs}}":{spaces}s}\n'
+                f'R\u00b2 adjusted:             {f"{float(R_sq_adj.flat[m]):.{self.sigfigs}}":{spaces}s}\n\n'
             )
 
         return self._stats_str

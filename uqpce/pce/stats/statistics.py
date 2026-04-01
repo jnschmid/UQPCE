@@ -39,14 +39,16 @@ def calc_R_sq(var_basis, matrix_coeffs, responses):
 
     R_sq = 1 - (err_sum_sq / tot_sum_sq)  # equation for R^2
 
-    if (R_sq > 1).any():
-        if (R_sq > 1 + thresh).any():
-            warn(
-                f'R squared value was {R_sq}. Check the variable basis and '
-                'responses.'
-            )
-
-        R_sq[(R_sq > 1.0) and (R_sq > 1 + thresh)] = 1.0
+    R_sq = np.atleast_1d(R_sq)
+    bad = R_sq > 1 + thresh
+    if np.any(bad):
+        warn(
+            f'R squared value was {R_sq[bad]}. Check the variable basis and '
+            'responses.'
+        )
+    R_sq = np.clip(R_sq, None, 1.0)
+    if R_sq.size == 1:
+        R_sq = float(R_sq)
 
     return R_sq
 
