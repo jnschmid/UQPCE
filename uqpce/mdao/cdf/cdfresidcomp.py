@@ -1,6 +1,6 @@
 import numpy as np
 import openmdao.api as om
-from openmdao.jax import act_tanh
+from openmdao.jax_funcs import act_tanh
 import jax.numpy as jnp
 
 
