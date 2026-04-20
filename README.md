@@ -1,6 +1,8 @@
 # UQPCE
 
-Uncertainty Quantification with Polynomial Chaos Expansion ([UQPCE](https://github.com/nasa/UQPCE)) is an open-source, python-based research code for use in parametric, non-deterministic computational studies. UQPCE utilizes a non-intrusive polynomial chaos for computational analyses. The software allows the user to perform an automated uncertainty analysis for any given computational code without requiring modification to the source. UQPCE estimates sensitivities, confidence intervals, and other model statistics, which can be useful in the conceptual design and analysis of flight vehicles. This software was developed for the [Aeronautics Systems Analysis Branch](https://sacd.larc.nasa.gov/asab/) within the [Systems Analysis and Concepts Directorate](https://sacd.larc.nasa.gov/) at [NASA Langley Research Center](https://www.nasa.gov/langley).
+Uncertainty Quantification with Polynomial Chaos Expansion ([UQPCE](https://github.com/nasa/UQPCE)) is an open-source, python-based research code for use in parametric, non-deterministic computational studies, and gradient-based optimization. UQPCE utilizes a non-intrusive polynomial chaos for computational analyses and is compatible with [OpenMDAO](https://github.com/OpenMDAO/OpenMDAO), an open-source systems analysis and multidisciplinary optimization software. UQPCE allows the user to perform an automated uncertainty analysis for any given computational code without requiring modification to the source. UQPCE estimates sensitivities, confidence intervals, and other model statistics, which can be useful in the conceptual design and analysis of flight vehicles. This software was developed for the [Aeronautics Systems Analysis Branch](https://sacd.larc.nasa.gov/asab/) within the [Systems Analysis and Concepts Directorate](https://sacd.larc.nasa.gov/) at [NASA Langley Research Center](https://www.nasa.gov/langley).
+
+If you are using UQPCE please [CITE](#citation) us!
 
 ## Documentation
 
@@ -11,6 +13,30 @@ Documentation for the most recent verison of UQPCE can be found [here](https://n
 Install library with `pip install .` in the location of your choice.
 
 Run the unittests using `python -m unittest discover uqpce`
+
+## Citation
+If you use UQPCE in your research, please cite:
+
+Ben D. Phillips, Joanna Schmidt, Robert D. Falck, Eliot D. Aretskin-Hariton (2025). [End-to-End Uncertainty Quantification with Analytical Derivatives for Design Under Uncertainty](https://arc.aiaa.org/doi/10.2514/1.C037976). *Journal of Aircraft, Volume 62, Number6*. [https://doi.org/10.2514/6.2024-4219](https://doi.org/10.2514/1.C037976)
+
+<details>
+<summary>BibTeX</summary>
+
+```bibtex
+@article{doi:10.2514/1.C037976,
+author = {Phillips, Ben D. and Schmidt, Joanna and Falck, Robert D. and Aretskin-Hariton, Eliot D.},
+title = {End-to-End Uncertainty Quantification with Analytical Derivatives for Design Under Uncertainty},
+journal = {Journal of Aircraft},
+volume = {62},
+number = {6},
+pages = {1522-1530},
+year = {2025},
+doi = {10.2514/1.C037976},
+URL = {https://doi.org/10.2514/1.C037976},
+}
+```
+</details>
+
 
 ## Notices
 Copyright © 2020-2024 United States Government as represented by the
