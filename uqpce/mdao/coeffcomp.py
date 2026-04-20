@@ -49,8 +49,13 @@ if __name__ == '__main__':
             [ 1.00000000e+00, -7.19942644e-01, 4.53624248e-01,]
         ])
     prob.model.add_subsystem(
+        'add_units',
+        om.ExecComp('resp = 1*responses', resp={'units': 'ft'}, shape=(5,)),
+        promotes_inputs=['responses'], promotes_outputs=['resp']
+    )
+    prob.model.add_subsystem(
         'comp', CoefficientsComp(var_basis=var_basis),
-        promotes_inputs=['*'], promotes_outputs=['*']
+        promotes_inputs=[('responses', 'resp')], promotes_outputs=['*']
     )
 
     prob.setup(force_alloc_complex=True)

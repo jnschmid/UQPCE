@@ -18,13 +18,24 @@ class MeanPlusVarComp(om.ExplicitComponent):
 
         outputs['mean_plus_var'] = inputs['mean'] + inputs['variance']
 
+
 if __name__ == '__main__':
-    import numpy as np
 
     prob = om.Problem()
     prob.model.add_subsystem(
-        'comp', MeanPlusVarComp(), promotes_inputs=['*'], promotes_outputs=['*']
+        'add_variance_units',
+        om.ExecComp('variance = 1*var', variance={'units': None}, shape=(1,)),
+        promotes_inputs=['var'], promotes_outputs=['variance']
     )
+    prob.model.add_subsystem(
+        'add_mean_units',
+        om.ExecComp('mean = 1*mu', mean={'units': None}, shape=(1,)),
+        promotes_inputs=['mu'], promotes_outputs=['mean']
+    )
+    prob.model.add_subsystem(
+        'comp', MeanPlusVarComp(), promotes_inputs=['mean', 'variance'], promotes_outputs=['*']
+    )
+    # knowns = {n for n, d in graph.nodes(data=True) if (d[prop] is not None) or d[prop_by_conn] or d[copy_prop]} # JOANNA
 
     prob.setup(force_alloc_complex=True)
     prob.set_val('mean', 4.7)
