@@ -10,23 +10,19 @@ from uqpce.mdao.cdf.cdfgroup import CDFGroup
 from uqpce.mdao.meanplusvarcomp import MeanPlusVarComp
 from uqpce.mdao.sobolcomp import SobolComp
 
-class UQPCEGroup(om.Group):
+class BaseUQPCEGroup(om.Group):
     """
-    Class definition for the UQPCEGroup.
+    Class definition for the BaseUQPCEGroup.
 
-    A UQPCEGroup object builds a Polynomial Chaos Expansion (PCE) model for an
-    arbitrary response. This object outputs statistics for the mean, variance,
-    and confidence interval on a given response.
+    A BaseUQPCEGroup object builds a Polynomial Chaos Expansion (PCE) model for
+    `one` arbitrary response. This object outputs statistics for the mean,
+    variance, and confidence interval on a given response.
     """
 
     def initialize(self):
         """
-        Declare any options for a UQPCEGroup.
+        Declare any options for a BaseUQPCEGroup.
         """
-        self.options.declare(
-            'uncert_list', allow_none=False,
-            desc='The string names of the uncertain outputs for the user\'s problem.'
-        )
         self.options.declare(
             'var_basis', allow_none=False,
             desc='The evaluated variable basis of the PCE model.'
@@ -56,15 +52,6 @@ class UQPCEGroup(om.Group):
             'epistemic_cnt', types=int, allow_none=False,
             desc='The number of epistemic samples used to resample the surrogate'
         )
-        self.options.declare('tanh_omega', types=(list, float, int), default=1e-6)
-        self.options.declare(
-            'sample_ref0', types=(list, None, int, float), default=None,
-            desc='Reference scale for 0 of the sample data'
-        )
-        self.options.declare(
-            'sample_ref', types=(list, None, int, float), default=None,
-            desc='Reference scale for 1 of the sample data'
-        )
         self.options.declare(
             'model_matrix', types=(np.ndarray, type(None)), default=None,
             desc='Interaction matrix for computing Sobol indices. '
@@ -76,117 +63,189 @@ class UQPCEGroup(om.Group):
             desc='Whether to compute Sobol sensitivity indices. '
                  'If True, model_matrix must be provided.'
         )
+        self.options.declare(
+            'use_tanh_ci', types=bool, default=False,
+            desc='A flag for if the former complex-safe tanh method for '
+            'calculating the confidence interval should be used.'
+        )
+
+        self._coeff_comp = CoefficientsComp
+
+    def _coeff_comp_kwargs(self):
+        return {'var_basis': self.options['var_basis']}
+
+    def _coeff_inputs(self):
+        return ['responses']
 
     def setup(self):
         """
         Setup the UQPCEGroup.
         """
-        uncert_list = self.options['uncert_list']
+        kwargs = self._coeff_comp_kwargs()
+        coeff_inputs = self._coeff_inputs()
+
         tail = self.options['tail']
         aleatory_cnt = self.options['aleatory_cnt']
         epistemic_cnt = self.options['epistemic_cnt']
-
-        cnt = 0
-
         alpha = self.options['significance']
         vec_size = self.options['resampled_var_basis'].shape[0]
-        if vec_size!=aleatory_cnt and vec_size!=(epistemic_cnt*aleatory_cnt):
+        oms = self.options['tanh_omega']
+        norm_sq = self.options['norm_sq']
+        ref0 = self.options['sample_ref0']
+        ref = self.options['sample_ref']
+
+        if vec_size != aleatory_cnt and vec_size != (epistemic_cnt*aleatory_cnt):
             exit(
                 'The length of your `resampled_var_basis` should equal either '
                 'the aleatory count of the aleatory count times the epistemic '
                 'count.'
             )
 
-        out_ci = 'f_ci' if vec_size==aleatory_cnt else 'ci'
-        use_ref0 = (not self.options['sample_ref0'] is None)
-        use_ref = (not self.options['sample_ref'] is None)
-        ref0 = 0.0
-        ref = 1.0
-        oms = self.options['tanh_omega']
+        out_ci = 'f_ci' if vec_size == aleatory_cnt else 'ci'
+
+        # Add the system which outputs the matrix coefficients
+        self.add_subsystem(
+            'coeff_comp',
+            self._coeff_comp(**kwargs),
+            promotes_inputs=coeff_inputs,
+            promotes_outputs=['matrix_coeffs', 'mean']
+        )
+
+        # Add the system which outputs resampled responses
+        self.add_subsystem(
+            'resamp_comp',
+            ResampleComp(resampled_var_basis=self.options['resampled_var_basis']),
+            promotes_inputs=['matrix_coeffs'],
+            promotes_outputs=['resampled_responses']
+        )
+
+        # Add the system which outputs variance
+        self.add_subsystem(
+            'var_comp', VarianceComp(norm_sq=norm_sq),
+            promotes_inputs=['matrix_coeffs'], promotes_outputs=['variance']
+        )
+
+        self.add_subsystem(
+            'mean_plus_var_comp', MeanPlusVarComp(),
+            promotes_inputs=['mean', 'variance'],
+            promotes_outputs=['mean_plus_var']
+        )
+
+        # Add Sobol sensitivity component if requested
+        if self.options['compute_sobols']:
+            model_matrix = self.options['model_matrix']
+            if model_matrix is None:
+                raise ValueError(
+                    'model_matrix must be provided when compute_sobols=True'
+                )
+
+            self.add_subsystem(
+                'sobol_comp',
+                SobolComp(norm_sq=norm_sq, model_matrix=model_matrix),
+                promotes_inputs=['matrix_coeffs'],
+                promotes_outputs=['sobols', 'total_sobols']
+            )
+
+        if tail == 'lower' or tail == 'both':
+            self.add_subsystem(
+                'lower_cdf_group',
+                CDFGroup(
+                    alpha=alpha, tail='lower', aleatory_cnt=aleatory_cnt,
+                    epistemic_cnt=epistemic_cnt, vec_size=vec_size,
+                    sample_ref0=ref0, sample_ref=ref, tanh_omega=oms
+                ),
+                promotes_inputs=[('f_sampled', 'resampled_responses')],
+                promotes_outputs=[(out_ci, 'ci_lower')]
+            )
+
+        if tail == 'upper' or tail == 'both':
+            self.add_subsystem(
+                'upper_cdf_group',
+                CDFGroup(
+                    alpha=alpha, tail='upper', aleatory_cnt=aleatory_cnt,
+                    epistemic_cnt=epistemic_cnt, vec_size=vec_size,
+                    sample_ref0=ref0, sample_ref=ref, tanh_omega=oms
+                ),
+                promotes_inputs=[('f_sampled', 'resampled_responses')],
+                promotes_outputs=[(out_ci, 'ci_upper')]
+            )
+
+
+class UQPCEGroup(BaseUQPCEGroup):
+    """
+    Class definition for the UQPCEGroup.
+
+    A UQPCEGroup object builds a Polynomial Chaos Expansion (PCE) model for an
+    arbitrary response. This object outputs statistics for the mean, variance,
+    and confidence interval on a given response.
+    """
+
+    def initialize(self):
+        """
+        Declare any options for a UQPCEGroup.
+        """
+        super(UQPCEGroup, self).initialize()
+        self.options.declare(
+            'uncert_list', allow_none=False,
+            desc='The string names of the uncertain outputs for the user\'s problem.'
+        )
+        self.options.declare('tanh_omega', types=(list, float, int), default=1e-6)
+        self.options.declare(
+            'sample_ref0', types=(list, int, float), default=0,
+            desc='Reference scale for 0 of the sample data'
+        )
+        self.options.declare(
+            'sample_ref', types=(list, int, float), default=1,
+            desc='Reference scale for 1 of the sample data'
+        )
+
+    def setup(self):
+        """
+        Setup the UQPCEGroup.
+        """
+        cnt = 0
+        uncert_list = self.options['uncert_list']
+        resampled_var_basis = self.options['resampled_var_basis']
+        var_basis = self.options['var_basis']
+        norm_sq = self.options['norm_sq']
+        sig = self.options['significance']
+        epist_cnt = self.options['epistemic_cnt']
+        aleat_cnt = self.options['aleatory_cnt']
+
+        sample_ref0 = self.options['sample_ref0']
+        ref0_type = type(sample_ref0)
+        sample_ref = self.options['sample_ref']
+        ref_type = type(sample_ref)
+        tanh_omega = self.options['tanh_omega']
+        omega_type = type(tanh_omega)
 
         for resp in uncert_list:
-            om = oms if ((type(oms) == list and len(oms)==1) or type(oms)==float or type(oms)==int) else oms[cnt]
-
-            if use_ref0:
-                ref = list(self.options['sample_ref0'])[cnt]
-            if use_ref:
-                ref = list(self.options['sample_ref'])[cnt]
+            omega = (tanh_omega if (
+                (omega_type == list and len(tanh_omega) == 1)
+                or omega_type == float or omega_type == int
+                ) else tanh_omega[cnt])
+            ref0 = (sample_ref0 if (
+                (ref0_type == list and len(sample_ref0) == 1)
+                or ref0_type == float or ref0_type == int
+                ) else sample_ref0[cnt])
+            ref = (sample_ref if (
+                (ref_type == list and len(sample_ref) == 1)
+                or ref_type == float or ref_type == int
+                ) else sample_ref[cnt])
 
             resp_subsys_name = resp.replace(':', '_')
 
-            # Add the system which outputs the matrix coefficients
             self.add_subsystem(
-                f'{resp_subsys_name}_coeff_comp',
-                CoefficientsComp(var_basis=self.options['var_basis']),
+                f'{resp_subsys_name}_pce',
+                BaseUQPCEGroup(
+                    var_basis=var_basis, norm_sq=norm_sq, significance=sig,
+                    resampled_var_basis=resampled_var_basis, tail='both',
+                    aleatory_cnt=aleat_cnt, epistemic_cnt=epist_cnt,
+                    sample_ref0=ref0, sample_ref=ref, tanh_omega=omega
+                ),
                 promotes_inputs=[('responses', resp)],
-                promotes_outputs=[
-                    ('matrix_coeffs', f'{resp}:matrix_coeffs'),
-                    ('mean', f'{resp}:mean')
-                ]
+                promotes_outputs=['*']
             )
-
-            # Add the system which outputs resampled responses
-            self.add_subsystem(
-                f'{resp_subsys_name}_resamp_comp',
-                ResampleComp(resampled_var_basis=self.options['resampled_var_basis']),
-                promotes_inputs=[('matrix_coeffs', f'{resp}:matrix_coeffs')],
-                promotes_outputs=[('resampled_responses', f'{resp}:resampled_responses')]
-            )
-
-            # Add the system which outputs variance
-            self.add_subsystem(
-                f'{resp_subsys_name}_var_comp', VarianceComp(norm_sq=self.options['norm_sq']),
-                promotes_inputs=[('matrix_coeffs', f'{resp}:matrix_coeffs')],
-                promotes_outputs=[('variance', f'{resp}:variance')]
-            )
-
-            self.add_subsystem(
-                f'{resp_subsys_name}_mean_plus_var_comp', MeanPlusVarComp(),
-                promotes_inputs=[('mean', f'{resp}:mean'),('variance', f'{resp}:variance')],
-                promotes_outputs=[('mean_plus_var', f'{resp}:mean_plus_var')]
-            )
-
-            # Add Sobol sensitivity component if requested
-            if self.options['compute_sobols']:
-                model_matrix = self.options['model_matrix']
-                if model_matrix is None:
-                    raise ValueError(
-                        'model_matrix must be provided when compute_sobols=True'
-                    )
-
-                self.add_subsystem(
-                    f'{resp_subsys_name}_sobol_comp',
-                    SobolComp(norm_sq=self.options['norm_sq'], model_matrix=model_matrix),
-                    promotes_inputs=[('matrix_coeffs', f'{resp}:matrix_coeffs')],
-                    promotes_outputs=[
-                        ('sobols', f'{resp}:sobols'),
-                        ('total_sobols', f'{resp}:total_sobols')
-                    ]
-                )
-
-            if tail == 'lower' or tail == 'both':
-                self.add_subsystem(
-                    f'{resp_subsys_name}_lower_cdf_group',
-                    CDFGroup(
-                        alpha=alpha, tail='lower', aleatory_cnt=aleatory_cnt,
-                        epistemic_cnt=epistemic_cnt, vec_size=vec_size,
-                        sample_ref0=ref0, sample_ref=ref, tanh_omega=om
-                    ),
-                    promotes_inputs=[('f_sampled', f'{resp}:resampled_responses')],
-                    promotes_outputs=[(out_ci, f'{resp}:ci_lower')]
-                )
-
-            if tail == 'upper' or tail == 'both':
-                self.add_subsystem(
-                    f'{resp_subsys_name}_upper_cdf_group',
-                    CDFGroup(
-                        alpha=alpha, tail='upper', aleatory_cnt=aleatory_cnt,
-                        epistemic_cnt=epistemic_cnt, vec_size=vec_size,
-                        sample_ref0=ref0, sample_ref=ref, tanh_omega=om
-                    ),
-                    promotes_inputs=[('f_sampled', f'{resp}:resampled_responses')],
-                    promotes_outputs=[(out_ci, f'{resp}:ci_upper')]
-                )
 
             cnt += 1
 

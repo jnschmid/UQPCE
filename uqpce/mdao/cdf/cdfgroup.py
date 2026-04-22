@@ -1,8 +1,72 @@
 import numpy as np
 import openmdao.api as om
+import jax
 import jax.numpy as jnp
 
 from uqpce.mdao.cdf.cdfresidcomp import CDFResidComp
+
+
+class CDFComp(om.JaxExplicitComponent):
+    """
+    Component class to calculate the differentiable confidence interval.
+    """
+
+    def initialize(self):
+        self.options.declare('vec_size', types=int)
+
+        # The probability of the response is greater than the 1-alpha value
+        # i.e. alpha=0.05 corresponds to the cumulative probability of 95%
+        self.options.declare(
+            'alpha', types=float, default=0.05,
+            desc='Single-sided upper confidence interval of (1-alpha)'
+        )
+        self.options.declare('aleatory_cnt', types=int, allow_none=False)
+        self.options.declare('epistemic_cnt', types=int, allow_none=False)
+        self.options.declare(
+            'tail', values=['lower', 'upper'], allow_none=False
+        )
+
+        self._no_check_partials = True
+
+    def setup(self):
+        alpha = self.options['alpha']
+        aleat_cnt = self.options['aleatory_cnt']
+        epist_cnt = self.options['epistemic_cnt']
+
+        self.add_input('samples', shape=(epist_cnt*aleat_cnt,))
+        self.add_output('f_ci', shape=(epist_cnt,))
+
+        self._sig = (1-alpha/2) if self.options['tail'] == 'upper' else alpha/2
+
+    def get_self_statics(self):
+        return (
+            self.options['alpha'], self.options['epistemic_cnt'],
+            self.options['aleatory_cnt']
+        )
+
+    def compute_primal(self, samples):
+        aleat_cnt = self.options['aleatory_cnt']
+        epist_cnt = self.options['epistemic_cnt']
+        tail = self.options['tail']
+
+        samps = jnp.reshape(samples, (-1, aleat_cnt))
+
+        if aleat_cnt != 1:
+            f_ci = jnp.quantile(jnp.real(samps), self._sig, axis=1)
+
+            # Mixed uncertainty
+            if epist_cnt != 1:
+                if tail == 'upper':
+                    f_ci = jnp.max(f_ci)
+                else:
+                    f_ci = jnp.min(f_ci)
+        else:  # Pure epistemic
+            if tail == 'upper':
+                f_ci = jnp.max(samps)
+            else:
+                f_ci = jnp.min(samps)
+
+        return f_ci
 
 
 class CDFGroup(om.Group):
@@ -104,17 +168,19 @@ if __name__ == '__main__':
     prob = om.Problem()
     prob.model.add_subsystem(
         'comp',
-        CDFGroup(
-            alpha=alpha, tanh_omega=0.005, tail='upper', vec_size=vec_size,
-            epistemic_cnt=epist_cnt, aleatory_cnt=aleat_cnt, sample_ref0=-0.13,
-            sample_ref=4.1
+        CDFComp(
+            alpha=alpha, tail='upper', vec_size=vec_size,
+            epistemic_cnt=epist_cnt, aleatory_cnt=aleat_cnt
         ),
         promotes_inputs=['*'], promotes_outputs=['*']
     )
 
     prob.setup(force_alloc_complex=True)
-    prob.set_val('f_sampled', samps)
+    prob.set_val('samples', samps)
     prob.run_model()
 
     with np.printoptions(threshold=np.inf):
-        prob.check_partials(compact_print=True, method='cs')
+        partials = prob.check_partials(compact_print=False, method='fd', form='central')
+
+    print(np.quantile(samps, [0.025, 1-0.025]))
+    print(prob.get_val('f_ci'))
