@@ -35,8 +35,7 @@ dependencies = [
     "matplotlib",
     "scipy>=1.13",
     "sympy",
-    "openmdao>=3.39.0",
-    "mpi4py",
+    "openmdao>=3.43.0",
     "jax>=0.4.30",
     "dymos"  # Required for example in documentation and corresponding tests
 ]

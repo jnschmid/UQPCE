@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import beta, nbinom, expon
 
 from uqpce.mdao.cdf.cdfgroup import CDFGroup
-from openmdao.jax import act_tanh
+from openmdao.jax_funcs import act_tanh
 
 tanh_omega = 1e-6
 aleat_cnt = 500_000
