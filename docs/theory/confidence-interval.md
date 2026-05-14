@@ -2,12 +2,13 @@
 
 # Confidence Interval
 
-A novel technique is to calculate a differentiable confidence interval. This technique is specifically implemented for use with OpenMDAO and is not used elsewhere in the UQPCE package to calculate confidence intervals. See the section about [derivatives](derivatives) for more information on why this approach is used.
+
+The default method for calculating the differentiable confidence interval is using the `jax` Python package to interpolate the resampled values; this supports finite-difference and analytic derivatives but not complex-step derivatives.
+
+UQPCE supports a technique to calculate a differentiable confidence interval that supports finite-difference analytic, and complex-step derivatives. See the section about [derivatives](derivatives) for more information on why this approach is supported. This technique can be used if `use_tanh_ci=True` in the `UQPCEGroup`.
 
 
-
-## Technique
-
+## Technique with `use_tanh_ci=True`
 
 
 $$
