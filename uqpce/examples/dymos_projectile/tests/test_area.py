@@ -1,7 +1,9 @@
 import unittest
+
 import numpy as np
 import openmdao.api as om
-from uqpce.examples.dymos_projectile.dymos_projectile.area import Area
+
+from uqpce.examples.dymos_projectile.area import Area
 
 
 class TestCost(unittest.TestCase):
@@ -24,7 +26,7 @@ class TestCost(unittest.TestCase):
         self.assertTrue(
             np.isclose(partial_m, 0), msg="Partial of area wrt m error."
         )
-    
+
     def test_compute(self):
         area = self.prob.get_val('A')
 

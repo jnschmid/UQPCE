@@ -17,7 +17,7 @@ Settings:
     order: 2
     over_samp_ratio: 2
     backend: Agg
-    track_convergence_off: False 
+    track_convergence_off: False
     aleat_samp_size: 500000
     verbose: True
     plot: True

@@ -1,7 +1,9 @@
 import unittest
+
 import numpy as np
 import openmdao.api as om
-from uqpce.examples.dymos_projectile.dymos_projectile.cost import Cost
+
+from uqpce.examples.dymos_projectile.cost import Cost
 
 
 class TestCost(unittest.TestCase):

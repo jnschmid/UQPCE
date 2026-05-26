@@ -1,7 +1,9 @@
 import unittest
+
 import numpy as np
 import openmdao.api as om
-from uqpce.examples.dymos_projectile.dymos_projectile.widthCI import WidthCI
+
+from uqpce.examples.dymos_projectile.widthCI import WidthCI
 
 
 class TestCost(unittest.TestCase):

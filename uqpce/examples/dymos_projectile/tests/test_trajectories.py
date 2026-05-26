@@ -1,8 +1,10 @@
 import unittest
+
+import dymos as dm
 import numpy as np
 import openmdao.api as om
-import dymos as dm
-from uqpce.examples.dymos_projectile.dymos_projectile.eom import EOM
+
+from uqpce.examples.dymos_projectile.eom import EOM
 
 
 class TestCost(unittest.TestCase):
@@ -28,7 +30,7 @@ class TestCost(unittest.TestCase):
         traj = dm.Trajectory()
         tx = dm.PicardShooting(num_segments=1, nodes_per_seg=11, solve_segments='forward')
         tx2 = dm.PicardShooting(num_segments=1, nodes_per_seg=11, solve_segments='forward')
-    
+
         ascent = traj.add_phase('ascent', dm.Phase(ode_class=EOM, transcription=tx))
 
         ascent.set_time_options(fix_initial=True, fix_duration=True)
@@ -74,7 +76,7 @@ class TestCost(unittest.TestCase):
         traj.link_phases(phases=('ascent', 'descent'), connected=True, vars='*')
 
         prob.model.add_subsystem('traj', traj)
-        
+
         prob.setup()
 
         ranges = {
@@ -85,7 +87,7 @@ class TestCost(unittest.TestCase):
             'y_init': 0,
             'y_dur': 50
         }
-        
+
         ascent.set_time_val(initial=ranges['t_init'], duration=ranges['t_dur'])
         ascent.set_state_val('x', [ranges['x_init'], ranges['x_dur']])
         ascent.set_state_val('y', [ranges['y_init'], ranges['y_dur']])
@@ -101,7 +103,7 @@ class TestCost(unittest.TestCase):
         prob.run_model()
         self.partials = prob.check_partials(out_stream=None, method='fd')
         self.prob = prob
- 
+
     def test_compute(self):
         # Height at max ascent
         y_max = self.prob.get_val('traj.ascent.timeseries.y')[10]

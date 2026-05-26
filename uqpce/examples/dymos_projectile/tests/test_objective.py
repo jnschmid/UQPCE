@@ -1,11 +1,13 @@
 import unittest
+
 import numpy as np
 import openmdao.api as om
-from uqpce.examples.dymos_projectile.dymos_projectile.obj import Obj
+
+from uqpce.examples.dymos_projectile.obj import Obj
 
 
 class TestCost(unittest.TestCase):
-    def setUp(self): 
+    def setUp(self):
         # Number of sample points
         resp_cnt = 12
         prob = om.Problem(reports=None)

@@ -1,6 +1,8 @@
-import numpy as np
 import jax.numpy as jnp
+import numpy as np
 import openmdao.api as om
+
+
 class V_Comp(om.ExplicitComponent):
     """
     OpenMDAO Explicit Component which computes x and y velocity components
@@ -32,7 +34,6 @@ class V_Comp(om.ExplicitComponent):
         outputs['vy'] = vy
 
     def compute_partials(self, inputs, partials):
-        n = self.options['num_samples']
         th_rad = inputs['theta']
         partials['vx', 'theta'] = inputs['v_in'] * (-1)*np.sin(th_rad)
         partials['vx', 'v_in'] = np.cos(th_rad)

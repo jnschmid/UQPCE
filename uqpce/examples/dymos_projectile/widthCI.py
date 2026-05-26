@@ -1,5 +1,6 @@
-import numpy as np
 import openmdao.api as om
+
+
 class WidthCI(om.ExplicitComponent):
     """
     OpenMDAO Explicit Component which computes the difference between

@@ -1,5 +1,6 @@
-import numpy as np
 import openmdao.api as om
+
+
 class Obj(om.ExplicitComponent):
     """
     OpenMDAO Explicit Component which defines the problem objective.
@@ -14,13 +15,13 @@ class Obj(om.ExplicitComponent):
         self.add_input('x_out:variance')
 
         self.add_output('obj')
-    
+
     def setup_partials(self):
         self.declare_partials(of='obj', wrt='x_out:mean')
 
     def compute(self, inputs, outputs):
         tgt = 150
-        
+
         outputs['obj'] = (tgt - inputs['x_out:mean']) ** 2
 
     def compute_partials(self, inputs, partials):

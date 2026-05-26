@@ -1,8 +1,10 @@
 import unittest
+
 import numpy as np
 import openmdao.api as om
 import openmdao.utils.assert_utils as om_assert
-from uqpce.examples.dymos_projectile.dymos_projectile.v_comp import V_Comp
+
+from uqpce.examples.dymos_projectile.v_comp import V_Comp
 
 
 class TestCost(unittest.TestCase):

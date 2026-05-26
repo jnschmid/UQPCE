@@ -1,5 +1,7 @@
 import numpy as np
 import openmdao.api as om
+
+
 class Cost(om.ExplicitComponent):
     """
     OpenMDAO Explicit Component which computes cost using Kinetic Energy,
@@ -24,7 +26,7 @@ class Cost(om.ExplicitComponent):
         self.declare_partials(of='v_out', wrt='v', val=1.0)
         self.declare_partials(of='cost', wrt='m')
         self.declare_partials(of='cost', wrt='v')
-    
+
     def compute(self, inputs, outputs):
         n = self.options['num_samples']
         outputs['cost'] = 0.5 * inputs['m'] * inputs['v'] ** 2
