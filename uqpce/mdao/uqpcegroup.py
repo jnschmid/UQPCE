@@ -247,11 +247,13 @@ class MultiUQPCEGroup(UQPCEGroup):
         opt_type = type(option)
 
         if opt_type is list and len(option) == 1:  # List of size 1
-            option = np.ones(iter_cnt) * option[0]
+            option = np.ones(iter_cnt, dtype=float) * option[0]
         elif opt_type is float or opt_type is int:
-            option = np.ones(iter_cnt) * option
+            option = np.ones(iter_cnt, dtype=float) * option
+        elif opt_type is list and len(option) == iter_cnt:
+            option = np.array(option, dtype=float)
         else:
-            raise ValueError('')
+            raise ValueError('The tanh input {option} should be reformatted.')
 
         return option
 
