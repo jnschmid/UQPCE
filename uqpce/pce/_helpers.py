@@ -106,7 +106,7 @@ def create_total_sobols(var_count, matrix, sobols):
         sobols = sobols.reshape(matrix.shape[0]-1, -1)
 
     mat_size = len(matrix)
-    total_sobols = np.zeros([var_count, sobols.shape[1]])
+    total_sobols = np.zeros([var_count, sobols.shape[1]], dtype=sobols.dtype)
 
     for i in range(1, mat_size):
         for j in range(var_count):
@@ -437,7 +437,7 @@ def calc_sobols(matrix_coeffs, norm_sq):
     prod = (norm_sq[1:] * matrix_coeffs_sq)
     sigma_sq = np.sum(prod)
 
-    sobols = np.zeros([1, min_model_size - 1,])
+    sobols = np.zeros([1, min_model_size - 1,], dtype=matrix_coeffs.dtype)
 
     for i in range(1, min_model_size):
         sobols[:, i - 1] = (
