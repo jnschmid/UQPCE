@@ -1,38 +1,34 @@
-import sys
-from builtins import setattr, getattr
 import random
+import sys
+from builtins import getattr, setattr
 
 import numpy as np
-from scipy.stats import poisson, randint, nbinom, hypergeom
+from scipy.stats import hypergeom, nbinom, poisson, randint
+from sympy import N, Sum, symbols
 from sympy.parsing.sympy_parser import parse_expr
 from sympy.utilities.lambdify import lambdify
-from sympy import *
-from sympy import symbols, Sum
 
 try:
-    from mpi4py.MPI import (
-        COMM_WORLD as MPI_COMM_WORLD, DOUBLE as MPI_DOUBLE
-    )
+    from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
     comm = MPI_COMM_WORLD
     rank = comm.rank
     size = comm.size
     is_manager = (rank == 0)
-except:
+except (ImportError, Exception):
     comm = None
     rank = 0
     size = 1
     is_manager = True
 
-from uqpce.pce._helpers import uniform_hypercube
 from uqpce.pce.enums import Distribution, UncertaintyType
-from uqpce.pce.variables.variable import Variable
 from uqpce.pce.error import VariableInputError
+from uqpce.pce.variables.variable import Variable
 
 
 class DiscreteVariable(Variable):
     """
-    Class represents a discrete variable. When using a variable of only this 
-    type, the x_values must be standardized for the desired distribution and 
+    Class represents a discrete variable. When using a variable of only this
+    type, the x_values must be standardized for the desired distribution and
     the probabilities must add up to 1.
 
     Parameters
@@ -44,7 +40,7 @@ class DiscreteVariable(Variable):
     interval_high :
         the high interval of the variable
     order :
-        the order of the model to calculate the orthogonal polynomials and norm 
+        the order of the model to calculate the orthogonal polynomials and norm
         squared values
     name :
         the name of the variable
@@ -63,7 +59,7 @@ class DiscreteVariable(Variable):
         self.order = order
         self.bounds = (self.interval_low, self.interval_high)
         self.std_bounds = self.bounds
-        
+
         self.name = f'x{number}' if name == '' else name
         self.var_str = f'x{number}'
         self.x = symbols(self.var_str)
@@ -103,7 +99,7 @@ class DiscreteVariable(Variable):
         if rank == 0 and mx > self.high_approx or mn < self.low_approx:
             print(
                 f'Large standardized value for variable {self.name} '
-                'with user distribution found. Check input and run matrix.', 
+                'with user distribution found. Check input and run matrix.',
                 file=sys.stderr
             )
             return -1
@@ -158,8 +154,8 @@ class DiscreteVariable(Variable):
 
 
     def generate_samples(self, samp_size, **kwargs):
-        """ 
-        Overrides the Variable class generate_samples to align with 
+        """
+        Overrides the Variable class generate_samples to align with
         a discrete uniform distribution.
 
         Parameters
@@ -178,7 +174,7 @@ class DiscreteVariable(Variable):
 
     def resample(self, samp_size):
         """
-        Overrides the Variable class resample to align with 
+        Overrides the Variable class resample to align with
         a discrete uniform distribution.
 
         Parameters
@@ -192,13 +188,13 @@ class DiscreteVariable(Variable):
 
     def create_norm_sq(self, x_values, probabilities):
         """
-        Calculates the norm squared values up to the order of polynomial 
-        expansion based on the probability density function and its 
+        Calculates the norm squared values up to the order of polynomial
+        expansion based on the probability density function and its
         corresponding orthogonal polynomials.
 
         x_values :
             the x-values associated with the variable
-        probabilities: 
+        probabilities:
             the probabilities associated with the x-values
         """
         orthopoly_count = len(self.var_orthopoly_vect)
@@ -218,7 +214,7 @@ class DiscreteVariable(Variable):
         if (self.norm_sq_vals <= norm_sq_thresh).any():
             print(
                 f'At least one norm squared value for variable {self.name} is '
-                f'very small. This can introduce error into the model.', 
+                f'very small. This can introduce error into the model.',
                 file=sys.stderr
             )
 
@@ -276,7 +272,7 @@ class DiscreteVariable(Variable):
 
     def standardize(self, orig, std_vals):
         """
-        Overrides the Variable class standardize to align with a discrete 
+        Overrides the Variable class standardize to align with a discrete
         uniform distribution.
 
         Parameters
@@ -305,7 +301,7 @@ class DiscreteVariable(Variable):
 
     def unstandardize_points(self, value):
         """
-        Calculates and returns the unscaled variable value from the 
+        Calculates and returns the unscaled variable value from the
         standardized value.
 
         Parameters
@@ -318,7 +314,7 @@ class DiscreteVariable(Variable):
 
     def check_num_string(self):
         """
-        Searches to replace sring 'pi' with its numpy equivalent in any of the 
+        Searches to replace sring 'pi' with its numpy equivalent in any of the
         values that might contain it.
         """
         pass
@@ -335,7 +331,7 @@ class DiscreteVariable(Variable):
 
 class PoissonVariable(DiscreteVariable):
     """
-    Represents a discrete poisson variable. The methods in this class correspond to 
+    Represents a discrete poisson variable. The methods in this class correspond to
     those of a discrete poisson variable.
 
     Parameters
@@ -397,7 +393,7 @@ class PoissonVariable(DiscreteVariable):
 
     def find_high_lim(self):
         """
-        Finds the high interval to use in calculations for the variable basis 
+        Finds the high interval to use in calculations for the variable basis
         and univariate norm squared values.
         """
         low_percent = 8e-17
@@ -420,7 +416,7 @@ class PoissonVariable(DiscreteVariable):
 
     def standardize(self, orig, std_vals):
         """
-        Overrides the Variable class standardize to align with 
+        Overrides the Variable class standardize to align with
         a discrete poisson distribution.
 
         Parameters
@@ -450,7 +446,7 @@ class PoissonVariable(DiscreteVariable):
 
     def unstandardize_points(self, values):
         """
-        Calculates and returns the unscaled variable value from the 
+        Calculates and returns the unscaled variable value from the
         standardized value.
 
         Parameters
@@ -464,7 +460,7 @@ class PoissonVariable(DiscreteVariable):
 
     def check_distribution(self, X):
         """
-        Overrides the Variable class check_distribution to align with 
+        Overrides the Variable class check_distribution to align with
         a discrete poisson distribution.
 
         Parameters
@@ -480,15 +476,15 @@ class PoissonVariable(DiscreteVariable):
         if rank == 0 and (mx > 40) or (mn < 0):
             print(
                 f'Large standardized value for variable {self.name} '
-                'with Poisson distribution found. Check input and run matrix.', 
+                'with Poisson distribution found. Check input and run matrix.',
                 file=sys.stderr
             )
             return -1
-        
+
 
     def check_num_string(self):
         """
-        Searches to replace sring 'pi' with its numpy equivalent in any of the 
+        Searches to replace sring 'pi' with its numpy equivalent in any of the
         values that might contain it.
         """
         lambd = getattr(self, 'lambda')
@@ -507,7 +503,7 @@ class PoissonVariable(DiscreteVariable):
 
 class NegativeBinomialVariable(DiscreteVariable):
     """
-    Represents a discrete NegativeBinomial variable. The methods in this class correspond to 
+    Represents a discrete NegativeBinomial variable. The methods in this class correspond to
     those of a discrete NegativeBinomial variable.
 
     Parameters
@@ -519,7 +515,7 @@ class NegativeBinomialVariable(DiscreteVariable):
     interval_low :
         the low interval of the variable
     order :
-        the order of the model to calculate the orthogonal polynomials and norm 
+        the order of the model to calculate the orthogonal polynomials and norm
         squared values
     name :
         the name of the variable
@@ -578,7 +574,7 @@ class NegativeBinomialVariable(DiscreteVariable):
 
     def find_high_lim(self):
         """
-        Finds the high interval to use in calculations for the variable basis 
+        Finds the high interval to use in calculations for the variable basis
         and univariate norm squared values.
         """
         low_percent = 8e-17
@@ -601,7 +597,7 @@ class NegativeBinomialVariable(DiscreteVariable):
 
     def standardize(self, orig, std_vals):
         """
-        Overrides the Variable class standardize to align with a discrete 
+        Overrides the Variable class standardize to align with a discrete
         NegativeBinomial distribution.
 
         Parameters
@@ -634,7 +630,7 @@ class NegativeBinomialVariable(DiscreteVariable):
 
     def unstandardize_points(self, values):
         """
-        Calculates and returns the unscaled variable value from the 
+        Calculates and returns the unscaled variable value from the
         standardized value.
 
         Parameters
@@ -649,7 +645,7 @@ class NegativeBinomialVariable(DiscreteVariable):
 
     def check_distribution(self, X):
         """
-        Overrides the Variable class check_distribution to align with 
+        Overrides the Variable class check_distribution to align with
         a discrete NegativeBinomial distribution.
 
         Parameters
@@ -676,7 +672,7 @@ class NegativeBinomialVariable(DiscreteVariable):
 
     def check_num_string(self):
         """
-        Searches to replace sring 'pi' with its numpy equivalent in any of the 
+        Searches to replace sring 'pi' with its numpy equivalent in any of the
         values that might contain it.
         """
 
@@ -685,7 +681,7 @@ class NegativeBinomialVariable(DiscreteVariable):
 
         if isinstance(self.r, str) and 'pi' in self.r:
             self.r = float(self.r.replace('pi', str(np.pi)))
-            
+
 
     def get_mean(self):
         return self.dist.mean()
@@ -696,7 +692,7 @@ class NegativeBinomialVariable(DiscreteVariable):
 
 class HypergeometricVariable(DiscreteVariable):
     """
-    Represents a discrete hypergeometric variable. The methods in this class correspond to 
+    Represents a discrete hypergeometric variable. The methods in this class correspond to
     those of a discrete hypergeometric variable.
 
     Parameters
@@ -710,7 +706,7 @@ class HypergeometricVariable(DiscreteVariable):
     interval_low :
         the low interval of the variable
     order :
-        the order of the model to calculate the orthogonal polynomials and norm 
+        the order of the model to calculate the orthogonal polynomials and norm
         squared values
     name :
         the name of the variable
@@ -744,7 +740,7 @@ class HypergeometricVariable(DiscreteVariable):
         self.M = M
         self.n = n
         self.N = N
-        
+
         self.name = f'x{number}' if name == '' else name
         self.var_str = f'x{number}'
         self.x = symbols(self.var_str)
@@ -775,7 +771,7 @@ class HypergeometricVariable(DiscreteVariable):
 
     def find_high_lim(self):
         """
-        Finds the high interval to use in calculations for the variable basis 
+        Finds the high interval to use in calculations for the variable basis
         and univariate norm squared values.
         """
         low_percent = 8e-17
@@ -798,7 +794,7 @@ class HypergeometricVariable(DiscreteVariable):
 
     def standardize(self, orig, std_vals):
         """
-        Overrides the Variable class standardize to align with a discrete 
+        Overrides the Variable class standardize to align with a discrete
         Hypergeomeric distribution.
 
         Parameters
@@ -831,7 +827,7 @@ class HypergeometricVariable(DiscreteVariable):
 
     def unstandardize_points(self, values):
         """
-        Calculates and returns the unscaled variable value from the 
+        Calculates and returns the unscaled variable value from the
         standardized value.
 
         Parameters
@@ -846,7 +842,7 @@ class HypergeometricVariable(DiscreteVariable):
 
     def check_distribution(self, X):
         """
-        Overrides the Variable class check_distribution to align with 
+        Overrides the Variable class check_distribution to align with
         a discrete hypergeometric distribution.
 
         Parameters
@@ -862,7 +858,7 @@ class HypergeometricVariable(DiscreteVariable):
         if rank == 0 and (mx > self.n) or (mn < 0):
             print(
                 f'Large standardized value for variable {self.name} with '
-                'hypergeometric distribution found. Check input and run matrix.', 
+                'hypergeometric distribution found. Check input and run matrix.',
                 file=sys.stderr
             )
             return -1
@@ -870,7 +866,7 @@ class HypergeometricVariable(DiscreteVariable):
 
     def check_num_string(self):
         """
-        Searches to replace sring 'pi' with its numpy equivalent in any of the 
+        Searches to replace sring 'pi' with its numpy equivalent in any of the
         values that might contain it.
         """
 
@@ -885,7 +881,7 @@ class HypergeometricVariable(DiscreteVariable):
 
 class UniformVariable(DiscreteVariable):
     """
-    Represents a discrete uniform variable. The methods in this class correspond to 
+    Represents a discrete uniform variable. The methods in this class correspond to
     those of a categorical variable.
 
     Parameters
@@ -895,7 +891,7 @@ class UniformVariable(DiscreteVariable):
     interval_high :
         the high interval of the variable
     order :
-        the order of the model to calculate the orthogonal polynomials and norm 
+        the order of the model to calculate the orthogonal polynomials and norm
         squared values
     name :
         the name of the variable
@@ -916,7 +912,7 @@ class UniformVariable(DiscreteVariable):
         self.interval_low = interval_low
         self.interval_high = interval_high
         self.order = order
-        
+
         self.name = f'x{number}' if name == '' else name
         self.var_str = f'x{number}'
         self.x = symbols(self.var_str)
@@ -951,7 +947,7 @@ class UniformVariable(DiscreteVariable):
 
     def standardize(self, orig, std_vals):
         """
-        Overrides the Variable class standardize to align with a discrete 
+        Overrides the Variable class standardize to align with a discrete
         uniform distribution.
 
         Parameters
@@ -991,7 +987,7 @@ class UniformVariable(DiscreteVariable):
 
     def unstandardize_points(self, value):
         """
-        Calculates and returns the unscaled variable value from the 
+        Calculates and returns the unscaled variable value from the
         standardized value.
 
         Parameters
@@ -1008,7 +1004,7 @@ class UniformVariable(DiscreteVariable):
 
     def check_distribution(self, X):
         """
-        Overrides the Variable class check_distribution to align with 
+        Overrides the Variable class check_distribution to align with
         a discrete uniform distribution.
 
         Parameters
@@ -1035,7 +1031,7 @@ class UniformVariable(DiscreteVariable):
 
     def check_num_string(self):
         """
-        Searches to replace string 'pi' with its numpy equivalent in any of the 
+        Searches to replace string 'pi' with its numpy equivalent in any of the
         values that might contain it.
         """
         if isinstance(self.interval_low, str) and 'pi' in self.interval_low:

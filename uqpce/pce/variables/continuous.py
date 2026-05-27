@@ -1,34 +1,33 @@
-from builtins import setattr, getattr
-import sys
-from fractions import Fraction
 import math
-from multiprocessing import Process, Manager
+import sys
+from builtins import getattr, setattr
+from fractions import Fraction
+from multiprocessing import Manager, Process
 
-from sympy import *
 import numpy as np
-from scipy.stats import norm, beta as fbeta, gamma, expon, uniform, lognorm
-from scipy.linalg import pascal
 from scipy.integrate import quad
-
-from sympy import symbols, zeros, integrate, N, sympify
+from scipy.linalg import pascal
+from scipy.stats import beta as fbeta
+from scipy.stats import expon, gamma, lognorm, norm, uniform
+from sympy import N, expand, integrate, symbols, sympify, zeros
 from sympy.parsing.sympy_parser import parse_expr
 from sympy.solvers import solve
 from sympy.utilities.lambdify import lambdify
 
-from uqpce.pce.enums import Distribution, UncertaintyType
 from uqpce.pce._helpers import uniform_hypercube
-from uqpce.pce.variables.variable import Variable
+from uqpce.pce.enums import Distribution, UncertaintyType
 from uqpce.pce.error import VariableInputError
+from uqpce.pce.variables.variable import Variable
 
 try:
-    from mpi4py.MPI import (
-        COMM_WORLD as MPI_COMM_WORLD, DOUBLE as MPI_DOUBLE, MAX as MPI_MAX
-    )
+    from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
+    from mpi4py.MPI import DOUBLE as MPI_DOUBLE
+    from mpi4py.MPI import MAX as MPI_MAX
     comm = MPI_COMM_WORLD
     rank = comm.rank
     size = comm.size
     is_manager = (rank == 0)
-except:
+except (ImportError, Exception):
     comm = None
     rank = 0
     size = 1
@@ -61,7 +60,7 @@ class ContinuousVariable(Variable):
         self.interval_low = interval_low
         self.interval_high = interval_high
         self.order = order
-        
+
         self.name = f'x{number}' if name == '' else name
         self.var_str = f'x{number}'
         self.x = symbols(self.var_str)
@@ -178,7 +177,7 @@ class ContinuousVariable(Variable):
         if rank == 0 and mx > self.high_approx or mn < self.low_approx:
             print(
                 f'Large standardized value for variable {self.name} '
-                'with user distribution found. Check input and run matrix.', 
+                'with user distribution found. Check input and run matrix.',
                 file=sys.stderr
             )
             return -1
@@ -596,7 +595,7 @@ class ContinuousVariable(Variable):
         ----------
         proc_dict :
             the dictionary in which the output will be stored
-    
+
         """
         y = symbols('y')
 
@@ -675,7 +674,7 @@ class UniformVariable(ContinuousVariable):
     interval_high :
         the high interval of the variable
     order :
-        the order of the model to calculate the orthogonal polynomials and norm 
+        the order of the model to calculate the orthogonal polynomials and norm
         squared values
     name :
         the name of the variable
@@ -695,7 +694,7 @@ class UniformVariable(ContinuousVariable):
         self.interval_low = interval_low
         self.interval_high = interval_high
         self.order = order
-        
+
         self.name = f'x{number}' if name == '' else name
         self.var_str = f'x{number}'
         self.x = symbols(self.var_str)
@@ -885,7 +884,7 @@ class NormalVariable(ContinuousVariable):
     stdev :
         the standard deviation of the variable
     order :
-        the order of the model to calculate the orthogonal polynomials and norm 
+        the order of the model to calculate the orthogonal polynomials and norm
         squared values
     name :
         the name of the variable
@@ -905,7 +904,7 @@ class NormalVariable(ContinuousVariable):
         self.mean = mean
         self.stdev = stdev
         self.order = order
-        
+
         self.name = f'x{number}' if name == '' else name
         self.var_str = f'x{number}'
         self.x = symbols(self.var_str)
@@ -1072,7 +1071,7 @@ class NormalVariable(ContinuousVariable):
         return super(ContinuousVariable, self).generate_samples(
             count, standardize=standardize
         )
-    
+
     def get_mean(self):
         return self.mean
 
@@ -1092,7 +1091,7 @@ class BetaVariable(ContinuousVariable):
     interval_high :
         the high interval of the variable
     order :
-        the order of the model to calculate the orthogonal polynomials and norm 
+        the order of the model to calculate the orthogonal polynomials and norm
         squared values
     name :
         the name of the variable
@@ -1127,7 +1126,7 @@ class BetaVariable(ContinuousVariable):
         self.interval_low = interval_low
         self.interval_high = interval_high
         self.order = order
-        
+
         self.name = f'x{number}' if name == '' else name
         self.var_str = f'x{number}'
         self.x = symbols(self.var_str)
@@ -1296,7 +1295,7 @@ class BetaVariable(ContinuousVariable):
         if rank == 0 and (mx > shift) or (mn < -shift):
             print(
                 f'Large standardized value for variable {self.name} '
-                'with Beta distribution found. Check input and run matrix.', 
+                'with Beta distribution found. Check input and run matrix.',
                 file=sys.stderr
             )
             return -1
@@ -1342,7 +1341,7 @@ class ExponentialVariable(ContinuousVariable):
     interval_low :
         the low interval of the variable
     order :
-        the order of the model to calculate the orthogonal polynomials and norm 
+        the order of the model to calculate the orthogonal polynomials and norm
         squared values
     name :
         the name of the variable
@@ -1364,7 +1363,7 @@ class ExponentialVariable(ContinuousVariable):
         setattr(self, 'lambda', lambd)
         self.interval_low = interval_low
         self.order = order
-        
+
         self.name = f'x{number}' if name == '' else name
         self.var_str = f'x{number}'
         self.x = symbols(self.var_str)
@@ -1397,7 +1396,7 @@ class ExponentialVariable(ContinuousVariable):
         self.create_norm_sq(low, high, parsed_dist)
 
         self.check_num_string()
-    
+
     def generate_samples(self, count, standardize=False):
         """
         Overrides the Variable class generate_samples to align with
@@ -1514,7 +1513,7 @@ class GammaVariable(ContinuousVariable):
     interval_low :
         the low interval of the variable
     order :
-        the order of the model to calculate the orthogonal polynomials and norm 
+        the order of the model to calculate the orthogonal polynomials and norm
         squared values
     name :
         the name of the variable
@@ -1539,7 +1538,7 @@ class GammaVariable(ContinuousVariable):
         self.theta = theta
         self.interval_low = interval_low
         self.order = order
-        
+
         self.name = f'x{number}' if name == '' else name
         self.var_str = f'x{number}'
         self.x = symbols(self.var_str)
@@ -1567,7 +1566,7 @@ class GammaVariable(ContinuousVariable):
         # if inf bounds, find approximate bound
         low_percent = 8e-17
         high_percent = 1 - low_percent
-        
+
         self.low_approx = self.interval_low
         self.high_approx = self.dist.ppf(high_percent)
 
@@ -1590,7 +1589,7 @@ class GammaVariable(ContinuousVariable):
             variable
         """
         return super(ContinuousVariable, self).generate_samples(count, standardize=standardize)
-    
+
     def standardize(self, orig, std_vals):
         """
         Overrides the Variable class standardize to align with
@@ -1654,7 +1653,7 @@ class GammaVariable(ContinuousVariable):
         if rank == 0 and (mx > shift) or (mn < 0):
             print(
                 f'Large standardized value for variable {self.name} '
-                'with gamma distribution found. Check input and run matrix.', 
+                'with gamma distribution found. Check input and run matrix.',
                 file=sys.stderr
             )
             return -1
@@ -1691,7 +1690,7 @@ class LognormalVariable(ContinuousVariable):
     interval_low :
         the low interval of the variable
     order :
-        the order of the model to calculate the orthogonal polynomials and norm 
+        the order of the model to calculate the orthogonal polynomials and norm
         squared values
     name :
         the name of the variable
@@ -1716,7 +1715,7 @@ class LognormalVariable(ContinuousVariable):
         self.stdev = stdev
         self.interval_low = interval_low
         self.order = order
-        
+
         self.name = f'x{number}' if name == '' else name
         self.var_str = f'x{number}'
         self.x = symbols(self.var_str)
@@ -1737,7 +1736,7 @@ class LognormalVariable(ContinuousVariable):
         parsed_dist = parse_expr(
             self.equation,
             local_dict={
-                's':parse_expr(str(Fraction(self.stdev))), 
+                's':parse_expr(str(Fraction(self.stdev))),
                 'mu':parse_expr(str(Fraction(self.mu))), 'x':x}
         )
 
@@ -1748,7 +1747,7 @@ class LognormalVariable(ContinuousVariable):
         # if inf bounds, find approximate bound
         low_percent = 8e-17
         high_percent = 1 - low_percent
-        
+
         self.low_approx = self.interval_low
         self.high_approx = self.dist.ppf(high_percent)
 
@@ -1773,7 +1772,7 @@ class LognormalVariable(ContinuousVariable):
         return super(ContinuousVariable, self).generate_samples(
             count, standardize=standardize
         )
-    
+
     def standardize(self, orig, std_vals):
         """
         Overrides the Variable class standardize to align with
@@ -1843,7 +1842,7 @@ class LognormalVariable(ContinuousVariable):
         if rank == 0 and (mx > shift) or (mn < 0):
             print(
                 f'Large standardized value for variable {self.name} '
-                'with lognormal distribution found. Check input and run matrix.', 
+                'with lognormal distribution found. Check input and run matrix.',
                 file=sys.stderr
             )
             return -1
@@ -1870,10 +1869,10 @@ class LognormalVariable(ContinuousVariable):
 class GaussianMixtureVariable(Variable):
     """
     Represents a Gaussian Mixture Model variable.
-    
+
     A GMM is a weighted sum of multiple Gaussian distributions:
     p(x) = Σ w_i * N(x; μ_i, σ_i²)
-    
+
     Parameters
     ----------
     weights : array-like
@@ -1889,43 +1888,39 @@ class GaussianMixtureVariable(Variable):
     name : str
         Variable name
     """
-    
-    __slots__ = ('weights', 'means', 'stdevs', 'n_components', 'mean', 'stdev', 
+
+    __slots__ = ('weights', 'means', 'stdevs', 'n_components', 'mean', 'stdev',
                  'is_standard_normal', '_pdf_cache')
-    
+
     def __init__(self, weights, means, stdevs, order=2, name='', number=0):
         """Initialize a Gaussian Mixture Model variable."""
-        
+
         # Validate and store GMM parameters
         self.weights = np.atleast_1d(weights).astype(float)
         self.means = np.atleast_1d(means).astype(float)
         self.stdevs = np.atleast_1d(stdevs).astype(float)
         self.n_components = len(self.weights)
-        
+
         if not (len(self.weights) == len(self.means) == len(self.stdevs)):
             raise VariableInputError(
-                'weights, means, and stdevs',
                 'GaussianMixtureVariable weights, means, and stdevs must have the same length.'
             )
-        
+
         if self.n_components == 0:
             raise VariableInputError(
-                'components',
                 'GaussianMixtureVariable must have at least one component.'
             )
-        
+
         if not np.all(self.weights > 0):
             raise VariableInputError(
-                'weights',
                 'GaussianMixtureVariable weights must all be greater than 0.'
             )
-        
+
         if not np.all(self.stdevs > 0):
             raise VariableInputError(
-                'stdevs', 
                 'GaussianMixtureVariable stdevs must all be greater than 0.'
             )
-        
+
         # Normalize weights
         weight_sum = np.sum(self.weights)
         if np.abs(weight_sum - 1.0) > 1e-10:
@@ -1933,67 +1928,67 @@ class GaussianMixtureVariable(Variable):
             if rank == 0 and weight_sum != 1.0:
                 print(
                     f'GaussianMixtureVariable: Normalized weights to sum to 1.0 '
-                    f'(original sum was {weight_sum:.6f})', 
+                    f'(original sum was {weight_sum:.6f})',
                     file=sys.stderr
                 )
-        
+
         # Calculate mixture statistics
         self.mean = float(np.sum(self.weights * self.means))
         e_x_squared = np.sum(self.weights * (self.stdevs**2 + self.means**2))
         gmm_var = e_x_squared - self.mean**2
         self.stdev = float(np.sqrt(gmm_var))
-        
+
         # Set basic attributes required by Variable
         self.order = order
         self.name = f'x{number}' if name == '' else name
         self.var_str = f'x{number}'
         self.x = symbols(self.var_str)
-        
+
         # Set distribution type
         self.distribution = Distribution.GAUSSIAN_MIXTURE
         self.type = UncertaintyType.ALEATORY
-        
+
         # Calculate bounds (following existing UQPCE patterns)
         bounds_factor = 4
         gmm_low = float(np.min(self.means - bounds_factor * self.stdevs))
         gmm_high = float(np.max(self.means + bounds_factor * self.stdevs))
-        
+
         # Use normal approximation for extended bounds
         self.dist = norm(loc=self.mean, scale=self.stdev)
         low_percent = 1e-7
         high_percent = 1 - low_percent
         norm_low = self.dist.ppf(low_percent)
         norm_high = self.dist.ppf(high_percent)
-        
+
         self.interval_low = min(norm_low, gmm_low)
         self.interval_high = max(norm_high, gmm_high)
         self.low_approx = self.interval_low
         self.high_approx = self.interval_high
         self.bounds = (self.low_approx, self.high_approx)
-        
+
         # Check if this is essentially a standard normal
         self.is_standard_normal = (
-            self.n_components == 1 and 
-            abs(self.mean) < 1e-10 and 
+            self.n_components == 1 and
+            abs(self.mean) < 1e-10 and
             abs(self.stdev - 1.0) < 1e-10
         )
-        
+
         # Cache for PDF evaluations
         self._pdf_cache = {}
-        
+
         # Generate orthogonal polynomials
         self.generate_orthopoly()
-        
+
         # Set standardized bounds
         self.std_bounds = (
             self.standardize_points(self.low_approx),
             self.standardize_points(self.high_approx)
         )
-        
+
         # Check for numerical issues
         self.check_num_string()
         self.check_distribution()
-    
+
     def generate_orthopoly(self):
         """
         Generate orthogonal polynomials for the GMM.
@@ -2003,14 +1998,14 @@ class GaussianMixtureVariable(Variable):
             self._generate_hermite_polynomials()
         else:
             self._generate_orthogonal_polynomials_gram_schmidt()
-    
+
     def _generate_hermite_polynomials(self):
         """Generate standard Hermite polynomials for standard normal GMM."""
         from sympy import zeros
-        
+
         self.var_orthopoly_vect = zeros(self.order + 1, 1)
         x = self.x
-        
+
         # Physicists' Hermite polynomials: H_{n+1} = xH_n - nH_{n-1}
         for n in range(self.order + 1):
             if n == 0:
@@ -2019,19 +2014,19 @@ class GaussianMixtureVariable(Variable):
                 self.var_orthopoly_vect[n] = x
             else:
                 self.var_orthopoly_vect[n] = expand(
-                    x * self.var_orthopoly_vect[n - 1] - 
+                    x * self.var_orthopoly_vect[n - 1] -
                     (n - 1) * self.var_orthopoly_vect[n - 2]
                 )
-        
+
         # Convert to numpy array (following UQPCE pattern)
         self.var_orthopoly_vect = np.array(self.var_orthopoly_vect).astype(object).T[0]
-        
+
         # Use factorial norm squared for standard Hermite
         self.norm_sq_vals = np.array([math.factorial(i) for i in range(self.order + 1)])
-        
+
         # Create norm_sq attribute for compatibility
         self.create_norm_sq()
-    
+
     def _generate_orthogonal_polynomials_gram_schmidt(self):
         """
         Generate orthogonal polynomials using Gram-Schmidt process.
@@ -2040,13 +2035,13 @@ class GaussianMixtureVariable(Variable):
         # Initialize polynomial vector
         self.var_orthopoly_vect = np.zeros(self.order + 1, dtype=object)
         self.norm_sq_vals = np.zeros(self.order + 1)
-        
+
         # Use recursive approach similar to DiscreteVariable
         self._recursive_orthogonalization(self.order)
-        
+
         # Create norm_sq attribute for compatibility
         self.create_norm_sq()
-    
+
     def _recursive_orthogonalization(self, order):
         """
         Recursively generate orthogonal polynomials up to given order.
@@ -2057,71 +2052,71 @@ class GaussianMixtureVariable(Variable):
             self.var_orthopoly_vect[0] = 1
             self.norm_sq_vals[0] = self._compute_inner_product(1, 1)
             return
-        
+
         # Recursive case: build all polynomials up to 'order'
         self._recursive_orthogonalization(order - 1)
-        
+
         # Start with monomial x^order
         x = self.x
         current_poly = x**order
-        
+
         # Gram-Schmidt: subtract projections onto all previous polynomials
         for i in range(order):
             prev_poly = self.var_orthopoly_vect[i]
-            
+
             # CRITICAL FIX: Compute projection using current_poly, not x**order
             # This ensures we're projecting the partially orthogonalized polynomial
             numerator = self._compute_inner_product(current_poly, prev_poly)
             denominator = self.norm_sq_vals[i]
-            
+
             if abs(denominator) < 1e-10:
                 print(f"Warning: Near-zero norm squared for polynomial {i}", file=sys.stderr)
                 continue
-                
+
             projection_coeff = numerator / denominator
-            
+
             # Subtract projection
             current_poly = current_poly - projection_coeff * prev_poly
-        
+
         # Simplify and store
         current_poly = expand(current_poly)
         self.var_orthopoly_vect[order] = current_poly
         self.norm_sq_vals[order] = self._compute_inner_product(current_poly, current_poly)
-        
+
         # Check for numerical issues (following UQPCE pattern)
         if order == self.order and (np.array(self.var_orthopoly_vect) == 0).any():
             print(
                 f'Variable {self.name} has at least one orthogonal polynomial '
-                f'that is zero. The model may not be accurate', 
+                f'that is zero. The model may not be accurate',
                 file=sys.stderr
             )
-    
+
     def _compute_inner_product(self, poly1, poly2):
         """
         Compute inner product <poly1, poly2> with respect to standardized GMM weight.
         """
         x = self.x
-        
+
         # Convert symbolic polynomials to callable functions
         if hasattr(poly1, 'free_symbols'):
             poly1_func = lambdify(x, poly1, 'numpy')
         else:
             poly1_func = lambda x_val: float(poly1) * np.ones_like(x_val)
-        
+
         if hasattr(poly2, 'free_symbols'):
             poly2_func = lambdify(x, poly2, 'numpy')
         else:
             poly2_func = lambda x_val: float(poly2) * np.ones_like(x_val)
-        
+
         def integrand(x_val):
             p1 = poly1_func(x_val)
             p2 = poly2_func(x_val)
             pdf = self._gmm_pdf_standardized(x_val)
             return p1 * p2 * pdf
-        
+
         # Integrate with appropriate bounds
         result, error = quad(integrand, -10, 10, limit=200, epsabs=1e-12, epsrel=1e-12)
-        
+
         # Warn if integration error is large
         if abs(error) > 1e-6 * abs(result) and rank == 0:
             print(
@@ -2129,22 +2124,22 @@ class GaussianMixtureVariable(Variable):
                 f'for variable {self.name}: {error:.2e}',
                 file=sys.stderr
             )
-        
+
         return result
-    
+
     def _gmm_pdf_standardized(self, x_std):
         """PDF of the standardized GMM (mean=0, std=1)."""
         # Transform back to original space
         x_raw = self.mean + x_std * self.stdev
-        
+
         # Compute GMM PDF in original space
         pdf = 0.0
         for w, m, s in zip(self.weights, self.means, self.stdevs):
             pdf += w * np.exp(-(x_raw - m)**2 / (2 * s**2)) / (s * np.sqrt(2 * np.pi))
-        
+
         # Apply Jacobian for the transformation to standardized space
         return pdf * self.stdev
-    
+
     def create_norm_sq(self):
         """
         Create norm_sq attribute for compatibility with UQPCE.
@@ -2153,7 +2148,7 @@ class GaussianMixtureVariable(Variable):
         # norm_sq_vals already computed during orthogonalization
         # This method exists for API compatibility
         pass
-    
+
     def get_norm_sq_val(self, matrix_val):
         """
         Returns the norm squared value corresponding to the matrix value.
@@ -2163,7 +2158,7 @@ class GaussianMixtureVariable(Variable):
             return float(self.norm_sq_vals[matrix_val])
         else:
             raise ValueError(f"Norm squared value not computed for index {matrix_val}")
-    
+
     def generate_samples(self, count, standardize=False):
         """
         Generate samples from the GMM distribution.
@@ -2172,23 +2167,23 @@ class GaussianMixtureVariable(Variable):
         # Select components based on weights
         components = np.random.choice(self.n_components, size=count, p=self.weights)
         samples = np.zeros(count)
-        
+
         # Generate samples from each component
         for i in range(self.n_components):
             mask = components == i
             n_samples = np.sum(mask)
             if n_samples > 0:
                 samples[mask] = np.random.normal(
-                    self.means[i], 
-                    self.stdevs[i], 
+                    self.means[i],
+                    self.stdevs[i],
                     n_samples
                 )
-        
+
         if standardize:
             return self.standardize_points(samples)
-        
+
         return samples
-    
+
     def cdf_sample(self, cdf_vals):
         """
         Sample from the GMM using CDF values.
@@ -2197,7 +2192,7 @@ class GaussianMixtureVariable(Variable):
         # Use normal approximation for CDF sampling
         # This is consistent with how UQPCE handles complex distributions
         return self.dist.ppf(cdf_vals)
-    
+
     def resample(self, count):
         """
         Generate resampled values for PCE internal use.
@@ -2206,7 +2201,7 @@ class GaussianMixtureVariable(Variable):
         samps = self.generate_samples(count, standardize=True)
 
         return samps
-    
+
     def standardize(self, orig, std_vals):
         """
         Standardize attribute values.
@@ -2216,19 +2211,19 @@ class GaussianMixtureVariable(Variable):
         standardized = self.standardize_points(original)
         setattr(self, std_vals, standardized)
         return getattr(self, std_vals)
-    
+
     def standardize_points(self, values):
         """
         Transform points to standardized space (mean=0, std=1).
         """
         return (np.atleast_1d(values) - self.mean) / self.stdev
-    
+
     def unstandardize_points(self, values):
         """
         Transform points from standardized space to original space.
         """
         return np.atleast_1d(values) * self.stdev + self.mean
-    
+
     def check_distribution(self, check_var='vals'):
         """
         Check if the distribution is reasonable.
@@ -2236,13 +2231,13 @@ class GaussianMixtureVariable(Variable):
         """
         if not hasattr(self, check_var):
             return
-        
+
         vals = getattr(self, check_var)
         std_vals = self.standardize_points(vals)
-        
+
         mx = np.max(std_vals)
         mn = np.min(std_vals)
-        
+
         if rank == 0 and (mx > 4.5 or mn < -4.5):
             print(
                 f'Large standardized value for variable {self.name} '
@@ -2250,7 +2245,7 @@ class GaussianMixtureVariable(Variable):
                 f'Max: {mx:.2f}, Min: {mn:.2f}. Check input and run matrix.',
                 file=sys.stderr
             )
-    
+
     def check_num_string(self):
         """
         Check for string representations of numbers.
@@ -2258,22 +2253,22 @@ class GaussianMixtureVariable(Variable):
         """
         # GMM doesn't use string inputs, but method exists for compatibility
         pass
-    
+
     def get_mean(self):
         """Return the mean of the GMM."""
         return self.mean
-    
+
     def get_variance(self):
         """Return the variance of the GMM."""
         return self.stdev**2
-    
+
     def get_stdev(self):
         """Return the standard deviation of the GMM."""
         return self.stdev
 
 class EpistemicVariable(UniformVariable):
 
-    
+
     def __init__(self, interval_low, interval_high, **kwargs):
         super().__init__(interval_low, interval_high, **kwargs)
         self.type = UncertaintyType.EPISTEMIC
