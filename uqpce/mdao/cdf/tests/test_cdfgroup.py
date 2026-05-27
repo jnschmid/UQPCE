@@ -1,13 +1,12 @@
 import unittest
 
+import matplotlib.pyplot as plt
 import numpy as np
 import openmdao.api as om
-import matplotlib.pyplot as plt
-
-from scipy.stats import beta, nbinom, expon
+from openmdao.jax_funcs import act_tanh
+from scipy.stats import beta, expon, nbinom
 
 from uqpce.mdao.cdf.cdfgroup import CDFGroup
-from openmdao.jax_funcs import act_tanh
 
 tanh_omega = 1e-6
 aleat_cnt = 500_000
@@ -37,7 +36,7 @@ class TestCDFGroup(unittest.TestCase):
             'lower',
             CDFGroup(
                 alpha=alpha, tail='lower', vec_size=aleat_cnt, tanh_omega=tanh_omega,
-                epistemic_cnt=1, aleatory_cnt=aleat_cnt,
+                epistemic_cnt=5, aleatory_cnt=int(aleat_cnt/5),
                 sample_ref0=self.beta_samples.min(), sample_ref=self.beta_samples.max()
             ), promotes_inputs=['*']
         )
@@ -45,52 +44,27 @@ class TestCDFGroup(unittest.TestCase):
             'upper',
             CDFGroup(
                 alpha=alpha, tail='upper', vec_size=aleat_cnt, tanh_omega=tanh_omega,
-                epistemic_cnt=1, aleatory_cnt=aleat_cnt,
+                epistemic_cnt=5, aleatory_cnt=int(aleat_cnt/5),
                 sample_ref0=self.beta_samples.min(), sample_ref=self.beta_samples.max()
             ), promotes_inputs=['*']
         )
 
         prob.setup()
-        prob.set_val('lower.cdf.samples', self.beta_samples)
+        # prob.set_val('lower.cdf.samples', self.beta_samples)
         prob.set_val('upper.cdf.samples', self.beta_samples)
         prob.run_model()
 
-        ci_lower = prob.get_val('lower.f_ci')[0]
-        ci_upper = prob.get_val('upper.f_ci')[0]
+        ci_lower = prob.get_val('lower.ci')[0]
+        ci_upper = prob.get_val('upper.ci')[0]
 
         self.assertTrue(
-            np.isclose(ci_lower, np.quantile(self.beta_samples, self.cil), atol=1e-2),
+            np.isclose(ci_lower, np.min(np.quantile(self.beta_samples.reshape(5, -1), self.cil, axis=1)), atol=1e-2),
             msg='Beta distribution failed with lower confidence interval.'
         )
         self.assertTrue(
-            np.isclose(ci_upper, np.quantile(self.beta_samples, self.cih), atol=1e-2),
+            np.isclose(ci_upper, np.max(np.quantile(self.beta_samples.reshape(5, -1), self.cih, axis=1)), atol=1e-2),
             msg='Beta distribution failed with upper confidence interval.'
         )
-
-        plt.figure()
-        x = np.linspace(0,1,aleat_cnt)
-        plt.plot(np.sort(self.beta_samples), x, '-o')
-        plt.plot([ci_lower, ci_lower], [0,1], 'r--')
-        plt.plot([ci_upper, ci_upper], [0,1], 'r--')
-        plt.title('Beta Distribution')
-        # plt.savefig('beta_cdf')
-
-        x = np.sort(self.beta_samples)
-
-        plt.figure()
-        act = act_tanh(x, mu=1e-12, z=ci_lower, a=1, b=0)
-        plt.plot(x, act, '-o')
-        plt.plot([ci_lower, ci_lower], [act.min(), act.max()], 'k--')
-        plt.title('Beta Distribution')
-        # plt.savefig('beta_lower_ci')
-
-        plt.figure()
-        act = act_tanh(x, mu=1e-12, z=ci_upper, a=1, b=0)
-        plt.plot(x, act, '-o')
-        plt.plot([ci_upper, ci_upper], [act.min(), act.max()], 'k--')
-        plt.title('Beta Distribution')
-        # plt.savefig('beta_upper_ci')
-
 
     def test_expon(self):
         alpha = 0.05
@@ -132,30 +106,6 @@ class TestCDFGroup(unittest.TestCase):
             msg='Exponential distribution failed with upper confidence interval.'
         )
 
-        plt.figure()
-        x = np.linspace(0,1,aleat_cnt)
-        plt.plot(np.sort(self.expon_samples), x, '-o')
-        plt.plot([ci_lower, ci_lower], [0,1], 'r--')
-        plt.plot([ci_upper, ci_upper], [0,1], 'r--')
-        plt.title('Exponential Distribution')
-        # plt.savefig('expon_cdf')
-
-        x = np.sort(self.expon_samples)
-
-        plt.figure()
-        act = act_tanh(x, mu=tanh_omega, z=ci_lower, a=1, b=0)
-        plt.plot(x, act, '-o')
-        plt.plot([ci_lower, ci_lower], [act.min(), act.max()], 'k--')
-        plt.title('Exponential Distribution')
-        # plt.savefig('expon_lower_ci')
-
-        plt.figure()
-        act = act_tanh(x, mu=tanh_omega, z=ci_upper, a=1, b=0)
-        plt.plot(x, act, '-o')
-        plt.plot([ci_upper, ci_upper], [act.min(), act.max()], 'k--')
-        plt.title('Exponential Distribution')
-        # plt.savefig('expon_upper_ci')
-
     def test_nbinom(self):
         alpha = 0.05
         tanh_omega = 1e-10
@@ -195,30 +145,6 @@ class TestCDFGroup(unittest.TestCase):
             np.isclose(ci_upper, np.quantile(self.nbinom_samples, self.cih), atol=1e-2),
             msg='Negative Binomial distribution failed with upper confidence interval.'
         )
-
-        plt.figure()
-        x = np.linspace(0,1,aleat_cnt)
-        plt.plot(np.sort(self.nbinom_samples), x, '-o')
-        plt.plot([ci_lower, ci_lower], [0,1], 'r--')
-        plt.plot([ci_upper, ci_upper], [0,1], 'r--')
-        plt.title('Binomial Distribution')
-        # plt.savefig('nbinom_cdf')
-
-        x = np.sort(self.nbinom_samples)
-
-        plt.figure()
-        act = act_tanh(x, mu=tanh_omega, z=ci_lower, a=1, b=0)
-        plt.plot(x, act, '-o')
-        plt.plot([ci_lower, ci_lower], [act.min()-0.1, act.max()+0.1], 'k--')
-        plt.title('Binomial Distribution')
-        # plt.savefig('nbinom_lower_ci')
-
-        plt.figure()
-        act = act_tanh(x, mu=tanh_omega, z=ci_upper, a=1, b=0)
-        plt.plot(x, act, '-o')
-        plt.plot([ci_upper, ci_upper], [act.min(), act.max()], 'k--')
-        plt.title('Binomial Distribution')
-        # plt.savefig('nbinom_upper_ci')
 
     def test_combined(self):
         alpha = 0.05
@@ -262,31 +188,6 @@ class TestCDFGroup(unittest.TestCase):
             msg='Combined distribution failed with upper confidence interval.'
         )
 
-        plt.figure()
-        x = np.linspace(0,1,aleat_cnt)
-        plt.plot(np.sort(samps), x, '-o')
-        plt.plot([ci_lower, ci_lower], [0,1], 'r--')
-        plt.plot([ci_upper, ci_upper], [0,1], 'r--')
-        plt.title('Combined Distributions')
-        # plt.savefig('combined_cdf')
-
-        x = np.sort(samps)
-
-        plt.figure()
-        act = act_tanh(x, mu=tanh_omega, z=ci_lower, a=1, b=0)
-        plt.plot(x, act, '-o')
-        plt.plot([ci_lower, ci_lower], [act.min(), act.max()], 'k--')
-        plt.title('Combined Distributions')
-        # plt.savefig('combined_lower_ci')
-
-        plt.figure()
-        act = act_tanh(x, mu=tanh_omega, z=ci_upper, a=1, b=0)
-        plt.plot(x, act, '-o')
-        plt.plot([ci_upper, ci_upper], [act.min(), act.max()], 'k--')
-        plt.title('Combined Distributions')
-        # plt.savefig('combined_upper_ci')
-
-
     def test_combined_high_order(self):
         alpha = 0.05
         tanh_omega = 1e-8
@@ -329,29 +230,6 @@ class TestCDFGroup(unittest.TestCase):
             msg='Combined high order failed with upper confidence interval.'
         )
 
-        plt.figure()
-        x = np.linspace(0,1,aleat_cnt)
-        plt.plot(np.sort(samps), x, '-o')
-        plt.plot([ci_lower, ci_lower], [0,1], 'r--')
-        plt.plot([ci_upper, ci_upper], [0,1], 'r--')
-        plt.title('High-Order Combined Distributions')
-        # plt.savefig('high_order_cdf')
-
-        x = np.sort(samps)
-
-        plt.figure()
-        act = act_tanh(x, mu=1e-12, z=ci_lower, a=1, b=0)
-        plt.plot(x, act, '-o')
-        plt.plot([ci_lower, ci_lower], [act.min(), act.max()], 'k--')
-        plt.title('High-Order Combined Distributions')
-        # plt.savefig('high_order_lower_ci')
-
-        plt.figure()
-        act = act_tanh(x, mu=1e-12, z=ci_upper, a=1, b=0)
-        plt.plot(x, act, '-o')
-        plt.plot([ci_upper, ci_upper], [act.min(), act.max()], 'k--')
-        plt.title('High-Order Combined Distributions')
-        # plt.savefig('high_order_upper_ci')
 
 if __name__ == '__main__':
 
