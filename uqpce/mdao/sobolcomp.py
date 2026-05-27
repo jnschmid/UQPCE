@@ -1,6 +1,7 @@
 """OpenMDAO component for computing Sobol sensitivity indices."""
 import numpy as np
 import openmdao.api as om
+
 from uqpce.pce._helpers import calc_sobols, create_total_sobols
 
 
@@ -122,7 +123,7 @@ class SobolComp(om.ExplicitComponent):
         ∂total_sobol[var]/∂coeff[j] = Σ ∂sobol[i]/∂coeff[j] for relevant i
         """
         matrix_coeffs = inputs['matrix_coeffs']
-        norm_sq = self.options['norm_sq']
+        norm_sq = self.options['norm_sq'].reshape(matrix_coeffs.shape)
         model_matrix = self.options['model_matrix']
 
         n_terms = len(matrix_coeffs)
@@ -135,14 +136,10 @@ class SobolComp(om.ExplicitComponent):
         # Compute variance (denominator of Sobol formula)
         # variance = Σ(coeff[i]² × norm_sq[i]) for i > 0
         # norm_sq is 2D (n_terms, 1), extract scalar values
-        variance = 0.0
-        for i in range(1, n_terms):
-            variance += matrix_coeffs[i]**2 * float(norm_sq[i])
+        variance = np.sum(matrix_coeffs[1:]**2 * norm_sq[1:])
 
         # Compute individual Sobols for derivative calculation
-        sobols = np.zeros(n_sobols)
-        for i in range(1, n_terms):
-            sobols[i-1] = (matrix_coeffs[i]**2 * float(norm_sq[i])) / variance
+        sobols = (matrix_coeffs[1:]**2 * norm_sq[1:]) / variance
 
         # Initialize Jacobian matrix for d(sobols)/d(matrix_coeffs)
         jac_sobols = np.zeros((n_sobols, n_terms))
@@ -159,13 +156,13 @@ class SobolComp(om.ExplicitComponent):
                     # Derivative with respect to own coefficient
                     # ∂sobol[i]/∂coeff[i] = 2×coeff[i]×norm_sq[i]/variance × (1 - sobol[i])
                     jac_sobols[sobol_idx, j] = (
-                        2.0 * matrix_coeffs[i] * float(norm_sq[i]) / variance * (1.0 - sobols[sobol_idx])
+                        2.0 * matrix_coeffs[i] * norm_sq[i] / variance * (1.0 - sobols[sobol_idx])
                     )
                 else:
                     # Derivative with respect to other coefficients (through variance)
                     # ∂sobol[i]/∂coeff[j] = -2×coeff[j]×norm_sq[j]×sobol[i]/variance
                     jac_sobols[sobol_idx, j] = (
-                        -2.0 * matrix_coeffs[j] * float(norm_sq[j]) * sobols[sobol_idx] / variance
+                        -2.0 * matrix_coeffs[j] * norm_sq[j] * sobols[sobol_idx] / variance
                     )
 
         partials['sobols', 'matrix_coeffs'] = jac_sobols
