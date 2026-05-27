@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 import openmdao.api as om
+from openmdao.utils.assert_utils import assert_check_partials
 
 from uqpce.mdao.coeffcomp import CoefficientsComp
 
@@ -20,7 +21,7 @@ class TestCoefficientsComp(unittest.TestCase):
                 [ 1.00000000e+00, -1.27260262e+00, -3.13090952e-02],
                 [ 1.00000000e+00, -7.19942644e-01, 4.53624248e-01,]
             ])
-    
+
         prob.model.add_subsystem(
             'comp', CoefficientsComp(var_basis=var_basis),
             promotes_inputs=['*'], promotes_outputs=['*']
@@ -38,30 +39,14 @@ class TestCoefficientsComp(unittest.TestCase):
         self.prob = prob
 
     def test_partials(self):
-        coeff_err_coeffs = (
-            self.partials['comp']
-            [('matrix_coeffs', 'responses')]['rel error'][0]
-        )
-        coeff_err_mean = (
-            self.partials['comp'][('mean', 'responses')]
-            ['rel error'][0]
-        )
-        self.assertTrue(
-            np.isclose(coeff_err_coeffs, 0), 
-            msg='CoefficientsComp derivative (\'matrix_coeffs\', \'responses\')'
-            ' is not correct'
-        )
-        self.assertTrue(
-            np.isclose(coeff_err_mean, 0), 
-            msg='CoefficientsComp derivative (\'mean\', \'responses\') is not '
-            'correct'
-        )
+        assert_check_partials(self.partials, atol=1e-6, rtol=1e-6)
+
 
     def test_coeffs(self):
         act_coeffs = np.array([9.24875496, 0.22670994, 2.18217806])
         calc_coeffs = self.prob.get_val('comp.matrix_coeffs')
         self.assertTrue(
-            np.isclose(calc_coeffs, act_coeffs).all(), 
+            np.isclose(calc_coeffs, act_coeffs).all(),
             msg='CoefficientsComp is not calculating coefficients correctly'
         )
 
