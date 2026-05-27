@@ -1,138 +1,111 @@
-#!/usr/bin/env python
-"""Test script for SobolComp integration with UQPCEGroup."""
+import unittest
 
 import numpy as np
 import openmdao.api as om
+from openmdao.utils.assert_utils import assert_check_partials
+
 from uqpce.mdao.sobolcomp import SobolComp
-from uqpce.mdao.uqpcegroup import UQPCEGroup
 from uqpce.pce._helpers import calc_sobols, create_total_sobols
 
 
-def test_sobol_comp_standalone():
-    """Test SobolComp as standalone component."""
-    print("Testing SobolComp standalone...")
+class TestSobolComp(unittest.TestCase):
+    def setUp(self):
+        np.random.seed(33)
 
-    # Create simple test data
-    n_terms = 4  # intercept + 3 terms
-    n_vars = 2
+    def test_sobol_comp_standalone(self):
+        """Test SobolComp as standalone component."""
 
-    # Mock norm_sq values (positive values for valid variance)
-    norm_sq = np.array([[1.0], [1.0], [1.0], [1.0]])  # Shape (n_terms, 1)
+        # Create simple test data
+        n_vars = 2
 
-    # Model matrix: which variables appear in each term
-    # Term 0: intercept (no variables)
-    # Term 1: variable 0
-    # Term 2: variable 1
-    # Term 3: variables 0 and 1 (interaction)
-    model_matrix = np.array([
-        [0, 0],  # intercept
-        [1, 0],  # var 0 only
-        [0, 1],  # var 1 only
-        [1, 1],  # interaction
-    ])
+        # Mock norm_sq values (positive values for valid variance)
+        norm_sq = np.array([[1.0], [1.0], [1.0], [1.0]])  # Shape (n_terms, 1)
 
-    # Test coefficients
-    matrix_coeffs = np.array([1.0, 0.5, 0.3, 0.2])
+        # Model matrix: which variables appear in each term
+        # Term 0: intercept (no variables)
+        # Term 1: variable 0
+        # Term 2: variable 1
+        # Term 3: variables 0 and 1 (interaction)
+        model_matrix = np.array([
+            [0, 0],  # intercept
+            [1, 0],  # var 0 only
+            [0, 1],  # var 1 only
+            [1, 1],  # interaction
+        ])
 
-    # Create problem
-    prob = om.Problem()
-    prob.model = om.Group()
+        # Test coefficients
+        matrix_coeffs = np.array([1.0, 0.5, 0.3, 0.2])
 
-    # Add component
-    prob.model.add_subsystem(
-        'sobol_comp',
-        SobolComp(norm_sq=norm_sq, model_matrix=model_matrix),
-        promotes=['*']
-    )
+        # Create problem
+        prob = om.Problem()
+        prob.model = om.Group()
 
-    prob.setup()
-    prob.set_val('matrix_coeffs', matrix_coeffs)
-    prob.run_model()
+        # Add component
+        prob.model.add_subsystem(
+            'sobol_comp',
+            SobolComp(norm_sq=norm_sq, model_matrix=model_matrix),
+            promotes=['*']
+        )
 
-    # Get results
-    sobols = prob.get_val('sobols')
-    total_sobols = prob.get_val('total_sobols')
+        prob.setup(force_alloc_complex=True)
+        prob.set_val('matrix_coeffs', matrix_coeffs)
+        prob.run_model()
 
-    print(f"  Coefficients: {matrix_coeffs}")
-    print(f"  Individual Sobols: {sobols}")
-    print(f"  Total Sobols: {total_sobols}")
+        # Get results
+        sobols = prob.get_val('sobols')
+        total_sobols = prob.get_val('total_sobols')
 
-    # Verify using direct calculation
-    expected_sobols = calc_sobols(matrix_coeffs, norm_sq)
-    expected_sobols_2d = expected_sobols.reshape(-1, 1)
-    expected_total = create_total_sobols(n_vars, model_matrix, expected_sobols_2d)
+        # Verify using direct calculation
+        expected_sobols = calc_sobols(matrix_coeffs, norm_sq)
+        expected_sobols_2d = expected_sobols.reshape(-1, 1)
+        expected_total = create_total_sobols(n_vars, model_matrix, expected_sobols_2d)
 
-    print(f"  Expected Individual: {expected_sobols}")
-    print(f"  Expected Total: {expected_total.flatten()}")
+        self.assertTrue(
+            np.allclose(sobols, expected_sobols),
+            msg="Individual Sobols mismatch!"
+        )
+        self.assertTrue(
+            np.allclose(total_sobols, expected_total.flatten()),
+            msg="Total Sobols mismatch!"
+        )
 
-    # Check if results match
-    assert np.allclose(sobols, expected_sobols), "Individual Sobols mismatch!"
-    assert np.allclose(total_sobols, expected_total.flatten()), "Total Sobols mismatch!"
+    def test_sobol_comp_derivatives(self):
+        """Test SobolComp analytic derivatives against complex step."""
 
-    print("  ✓ SobolComp standalone test passed\n")
+        # Same setup as above
+        norm_sq = np.array([[1.0], [1.0], [1.0], [1.0]])
+        model_matrix = np.array([
+            [0, 0],
+            [1, 0],
+            [0, 1],
+            [1, 1],
+        ])
+        matrix_coeffs = np.array([1.0, 0.5, 0.3, 0.2])
 
+        # Create problem
+        prob = om.Problem()
+        prob.model = om.Group()
 
-def test_sobol_comp_derivatives():
-    """Test SobolComp analytic derivatives against finite differences."""
-    print("Testing SobolComp derivatives...")
+        prob.model.add_subsystem(
+            'sobol_comp',
+            SobolComp(norm_sq=norm_sq, model_matrix=model_matrix),
+            promotes=['*']
+        )
 
-    # Same setup as above
-    n_terms = 4
-    n_vars = 2
-    norm_sq = np.array([[1.0], [1.0], [1.0], [1.0]])
-    model_matrix = np.array([
-        [0, 0],
-        [1, 0],
-        [0, 1],
-        [1, 1],
-    ])
-    matrix_coeffs = np.array([1.0, 0.5, 0.3, 0.2])
+        prob.setup()
+        prob.set_val('matrix_coeffs', matrix_coeffs)
+        prob.run_model()
 
-    # Create problem
-    prob = om.Problem()
-    prob.model = om.Group()
+        # Check analytic partials against complex step
+        data = prob.check_partials(out_stream=None, method='cs')
 
-    prob.model.add_subsystem(
-        'sobol_comp',
-        SobolComp(norm_sq=norm_sq, model_matrix=model_matrix),
-        promotes=['*']
-    )
-
-    prob.setup()
-    prob.set_val('matrix_coeffs', matrix_coeffs)
-    prob.run_model()
-
-    # Check analytic partials against finite differences
-    # Note: SobolComp provides analytic derivatives but doesn't support complex step
-    # because the underlying UQPCE functions don't support complex numbers
-    data = prob.check_partials(method='fd', step=1e-7, compact_print=False)
-
-    from openmdao.utils.assert_utils import assert_check_partials
-    # Use reasonable tolerances for finite differences
-    assert_check_partials(data, atol=1e-6, rtol=1e-6)
-
-    print("  ✓ SobolComp derivative test passed\n")
-
-
-def test_sobol_integration_summary():
-    """Summarize Sobol integration testing."""
-    print("Sobol Integration Summary:")
-    print("  - SobolComp computes individual and total Sobol indices")
-    print("  - Analytic derivatives match finite differences")
-    print("  - Integration with UQPCEGroup verified in aircraft design code")
-    print("  - Feature ready for production use")
-    print("  ✓ All Sobol functionality tests passed\n")
+        # Use reasonable tolerances for complex step
+        assert_check_partials(data, atol=1e-6, rtol=1e-6)
 
 
 if __name__ == '__main__':
-    print("\n" + "="*60)
-    print("SOBOL SENSITIVITY INTEGRATION TESTS")
-    print("="*60 + "\n")
 
-    test_sobol_comp_standalone()
-    test_sobol_comp_derivatives()
-    test_sobol_integration_summary()
+    np.random.seed(33)
 
-    print("="*60)
-    print("ALL TESTS PASSED!")
-    print("="*60)
+    suite = unittest.TestSuite()
+    unittest.main()
