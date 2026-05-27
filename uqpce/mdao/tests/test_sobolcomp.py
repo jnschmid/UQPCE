@@ -92,7 +92,7 @@ class TestSobolComp(unittest.TestCase):
             promotes=['*']
         )
 
-        prob.setup()
+        prob.setup(force_alloc_complex=True)
         prob.set_val('matrix_coeffs', matrix_coeffs)
         prob.run_model()
 
