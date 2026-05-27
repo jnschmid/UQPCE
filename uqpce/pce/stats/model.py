@@ -1,11 +1,14 @@
 from itertools import combinations
 
 import numpy as np
-from scipy.stats import f as f_dist, pearsonr
+from scipy.stats import f as f_dist
+from scipy.stats import pearsonr
 
 from uqpce.pce._helpers import solve_coeffs
 from uqpce.pce.stats.statistics import (
-    calc_sum_sq_regr, calc_mean_sq_err, calc_partial_F
+    calc_mean_sq_err,
+    calc_partial_F,
+    calc_sum_sq_regr,
 )
 
 
@@ -16,19 +19,19 @@ def stepwise_regression(
     """
     Inputs: orig_var_basis- the full variable basis
             responses- the array of responses
-            alpha_in- the alpha parameter used for the F-distribution threshold 
+            alpha_in- the alpha parameter used for the F-distribution threshold
             for values to be added to the model (default: 0.15)
-            alpha_out- the alpha parameter used for the F-distribution threshold 
+            alpha_out- the alpha parameter used for the F-distribution threshold
             for values to be removed to the model (default: 0.15)
-            partial_model- boolean if the model will be built using only 
-            (model_size + 1) terms from variable basis and responses (True) or 
+            partial_model- boolean if the model will be built using only
+            (model_size + 1) terms from variable basis and responses (True) or
             if all of will be used (False) (default: True)
-            sort- whether the indices will be returned in the sorted order or 
+            sort- whether the indices will be returned in the sorted order or
             the order in which they're added
-    
-    Uses stepwise regression to build a model of the most relevant terms of 
+
+    Uses stepwise regression to build a model of the most relevant terms of
     the model.
-    
+
     Applied Statistics and Probability for Engineers, 4th ed (pg. 486)
     """
 
@@ -63,19 +66,19 @@ def adapt_stepwise_regression(
     Inputs: combo- the starting combination (intercept + strongest term)
             orig_var_basis- the full variable basis
             responses- the array of responses
-            alpha_in- the alpha parameter used for the F-distribution threshold 
+            alpha_in- the alpha parameter used for the F-distribution threshold
             for values to be added to the model (default: 0.15)
-            alpha_out- the alpha parameter used for the F-distribution threshold 
+            alpha_out- the alpha parameter used for the F-distribution threshold
             for values to be removed to the model (default: 0.15)
-            partial_model- boolean if the model will be built using only 
-            (model_size + 1) terms from variable basis and responses (True) or 
+            partial_model- boolean if the model will be built using only
+            (model_size + 1) terms from variable basis and responses (True) or
             if all of will be used (False) (default: True)
-            sort- whether the indices will be returned in the sorted order or 
+            sort- whether the indices will be returned in the sorted order or
             the order in which they're added
-    
-    Uses stepwise regression to build a model of the most relevant terms of 
+
+    Uses stepwise regression to build a model of the most relevant terms of
     the model.
-    
+
     Applied Statistics and Probability for Engineers, 4th ed (pg. 486)
     """
 
@@ -368,8 +371,8 @@ def get_most_correlated(var_basis, responses):
     """
     Inputs: var_basis- the variable basis matrix
             responses- the vector of responses
-    
-    Returns the index of the term that correlates most strongly to the 
+
+    Returns the index of the term that correlates most strongly to the
     responses.
     """
     intercept_shift = 1
@@ -391,16 +394,16 @@ def get_most_correlated(var_basis, responses):
 
 def find_lower_terms(model_matrix, row_idx, combo):
     """
-    Inputs: model_matrix- the matrix that contains integers for the variable 
+    Inputs: model_matrix- the matrix that contains integers for the variable
             and order present for each term
-            row_idx- an array containing the indices of the rows in the 
-            model_matrix whose lower-order terms that make them up will be 
+            row_idx- an array containing the indices of the rows in the
+            model_matrix whose lower-order terms that make them up will be
             found
             combo- the input combo whose lower terms will be found
-    
-    Takes some input of the non-zero terms in the combination array. 
+
+    Takes some input of the non-zero terms in the combination array.
     Generates all model terms that make up the higher terms.
-    (i.e. if x0*x1**2 is chosen, terms x0, x1, x0*x1, and x1**2 are added 
+    (i.e. if x0*x1**2 is chosen, terms x0, x1, x0*x1, and x1**2 are added
     if they aren't already included.)
     """
 
@@ -429,10 +432,10 @@ def best_subset(var_basis, responses, model_size):
     """
     Inputs: var_basis- the variable basis matrix
             responses- the response matrix
-            model_size- the size of the desired model; must be smaller than the 
+            model_size- the size of the desired model; must be smaller than the
             full model size for the given order
 
-    Finds the subset of size 'model_size' with the smallest amount of model 
+    Finds the subset of size 'model_size' with the smallest amount of model
     error.
     """
     combo_temp = range(1, model_size + 1)

@@ -7,7 +7,7 @@ try:
     rank = comm.rank
     size = comm.size
     is_manager = (rank == 0)
-except:
+except (ImportError, Exception):
     comm = None
     rank = 0
     size = 1
@@ -17,8 +17,8 @@ except:
 class Graphs:
     """
     Inputs: standardize- boolean for if graphs should be standardized or not
-    
-    Creates the plots of the variable values vs some other value. Plots the 
+
+    Creates the plots of the variable values vs some other value. Plots the
     model error vs the predicted responses.
     """
 
@@ -29,15 +29,15 @@ class Graphs:
 
     def factor_plots(self, graph_dir, var_list, plot_data, X, plot_name,
                      verify=False):
-        """ 
+        """
         Inputs: graph_dir- file location where to put plots
                 var_list- list of variables
                 plot_data- the data to be plotted
-                plot_name- 'Predicted' or 'Error'; what data is 
+                plot_name- 'Predicted' or 'Error'; what data is
                 being plotted
-                verify- if these points are the verification points or the 
+                verify- if these points are the verification points or the
                 input points
-        
+
         Generates plots for each variable against plot_data.
         """
         var_count = len(var_list)
@@ -72,7 +72,7 @@ class Graphs:
                 err- difference between predicted vals and actual vals
                 pred- the predicted values
                 plot_name- the name of the plot
-        
+
         Generates a plot of the error vs the predicted values.
         """
         if is_manager and self.verbose:
@@ -92,8 +92,8 @@ class Graphs:
                 act- actual response values
                 mean- predicted mean for each point
                 conf- predicted mean confidence intervals for each point
-        
-        Generates a plot of the predicted values, the verification points, and 
+
+        Generates a plot of the predicted values, the verification points, and
         the prediction interval at each point.
         """
         plot_name = 'Predicted and Actual Responses'

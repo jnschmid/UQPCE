@@ -1,15 +1,17 @@
 import math
+
 import numpy as np
 from numpy.linalg import inv
 from scipy.stats import t as t_stat
 
 try:
-    from mpi4py.MPI import DOUBLE as MPI_DOUBLE, COMM_WORLD as MPI_COMM_WORLD
+    from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
+    from mpi4py.MPI import DOUBLE as MPI_DOUBLE
     comm = MPI_COMM_WORLD
     rank = comm.rank
     size = comm.size
     is_manager = (rank == 0)
-except:
+except (ImportError, Exception):
     comm = None
     rank = 0
     size = 1

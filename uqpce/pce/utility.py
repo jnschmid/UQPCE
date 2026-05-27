@@ -1,6 +1,5 @@
 import argparse
 from builtins import getattr
-from collections import namedtuple
 
 try:
     from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
@@ -8,39 +7,41 @@ try:
     rank = comm.rank
     size = comm.size
     is_manager = (rank == 0)
-except:
+except (ImportError, Exception):
     comm = None
     rank = 0
     size = 1
     is_manager = True
 
 import numpy as np
+
 from uqpce.pce.io import DataSet
+
 
 class ProgSet():
     def __init__(self, **kwargs):
         settings_dict = {
-            'out_file':-np.inf, 'sobol_out':-np.inf, 'coeff_out':-np.inf, 
-            'input_file':-np.inf, 'matrix_file':-np.inf, 'results_file':-np.inf, 
-            'verification_results_file':-np.inf, 'verification_matrix_file':-np.inf, 
-            'case':-np.inf, 'version_num':-np.inf, 'backend':-np.inf, 
-            'verbose':-np.inf, 'verify':-np.inf, 'version':-np.inf, 'plot':-np.inf, 
+            'out_file':-np.inf, 'sobol_out':-np.inf, 'coeff_out':-np.inf,
+            'input_file':-np.inf, 'matrix_file':-np.inf, 'results_file':-np.inf,
+            'verification_results_file':-np.inf, 'verification_matrix_file':-np.inf,
+            'case':-np.inf, 'version_num':-np.inf, 'backend':-np.inf,
+            'verbose':-np.inf, 'verify':-np.inf, 'version':-np.inf, 'plot':-np.inf,
             'plot_stand':-np.inf, 'generate_samples':-np.inf, 'user_func':-np.inf,
-            'model_conf_int':-np.inf, 'stats':-np.inf, 'report':-np.inf, 
-            'track_convergence_off':-np.inf, 'epist_sub_samp_size':-np.inf, 
+            'model_conf_int':-np.inf, 'stats':-np.inf, 'report':-np.inf,
+            'track_convergence_off':-np.inf, 'epist_sub_samp_size':-np.inf,
             'aleat_sub_samp_size':-np.inf, 'order':-np.inf, 'significance':-np.inf,
-            'over_samp_ratio':-np.inf, 'conv_threshold_percent':-np.inf, 
-            'epist_samp_size':-np.inf, 'aleat_samp_size':-np.inf, 'seed':-np.inf, 
-            'bound_limits':-np.inf, 'arg_options':-np.inf, 'var_thresh':-np.inf, 
-            'output_directory':-np.inf, 'resp_order':-np.inf, 
+            'over_samp_ratio':-np.inf, 'conv_threshold_percent':-np.inf,
+            'epist_samp_size':-np.inf, 'aleat_samp_size':-np.inf, 'seed':-np.inf,
+            'bound_limits':-np.inf, 'arg_options':-np.inf, 'var_thresh':-np.inf,
+            'output_directory':-np.inf, 'resp_order':-np.inf,
             'verify_over_samp_ratio':-np.inf
         }
         settings_dict.update(**kwargs)
         self.dict = settings_dict
-        
+
         for key, val in settings_dict.items():
             setattr(self, key, val)
-    
+
     def update(self, **kwargs):
         for key, val in kwargs.items():
             setattr(self, key, val)
@@ -98,20 +99,20 @@ def defaults():
 
     prog_set = ProgSet(**{
         'out_file':out_file, 'sobol_out':sobol_out, 'coeff_out':coeff_out,
-        'input_file':input_file, 'order':order, 'matrix_file':matrix_file, 
+        'input_file':input_file, 'order':order, 'matrix_file':matrix_file,
         'results_file':results_file, 'verify':verify, 'user_func':user_func,
         'verification_results_file':verification_results_file, 'plot':plot,
-        'verification_matrix_file':verification_matrix_file, 'case':case, 
+        'verification_matrix_file':verification_matrix_file, 'case':case,
         'version_num':version_num, 'backend':backend, 'verbose':verbose,
-        'plot_stand':plot_stand, 'generate_samples':generate_samples, 
+        'plot_stand':plot_stand, 'generate_samples':generate_samples,
         'model_conf_int':model_conf_int, 'stats':stats, 'report':report,
-        'track_convergence_off':track_convergence_off, 'var_thresh':var_thresh, 
+        'track_convergence_off':track_convergence_off, 'var_thresh':var_thresh,
         'epist_sub_samp_size':epist_sub_samp_size, 'version':version,
         'aleat_sub_samp_size':aleat_sub_samp_size, 'significance':significance,
         'over_samp_ratio':over_samp_ratio, 'output_directory':output_directory,
-        'conv_threshold_percent':conv_threshold_percent, 'seed':seed, 
+        'conv_threshold_percent':conv_threshold_percent, 'seed':seed,
         'aleat_samp_size':aleat_samp_size, 'bound_limits':bound_limits,
-        'verify_over_samp_ratio':verify_over_samp_ratio, 
+        'verify_over_samp_ratio':verify_over_samp_ratio,
         'epist_samp_size':epist_samp_size,
     })
 
@@ -121,8 +122,8 @@ def defaults():
 def arg_parser(prog_set):
     """
     Inputs: prog_set- the set of UQPCE program settings
-    
-    Parses the UQPCE arguments and sets them from the defaults, the input yaml 
+
+    Parses the UQPCE arguments and sets them from the defaults, the input yaml
     file, and the command line options, respectively.
     """
     # region: parsing arguments

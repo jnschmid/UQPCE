@@ -5,21 +5,20 @@ from sympy import symbols
 from sympy.utilities.lambdify import lambdify
 
 try:
-    from mpi4py.MPI import DOUBLE as MPI_DOUBLE, COMM_WORLD as MPI_COMM_WORLD
+    from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
     comm = MPI_COMM_WORLD
     rank = comm.rank
     size = comm.size
     is_manager = (rank == 0)
-except:
+except (ImportError, Exception):
     comm = None
     rank = 0
     size = 1
     is_manager = True
 
+from uqpce.pce._helpers import evaluate_points
 from uqpce.pce.enums import UncertaintyType
-from uqpce.pce._helpers import evaluate_points, evaluate_points_verbose, warn
 from uqpce.pce.stats.statistics import calc_mean_conf_int
-from uqpce.pce.variables.continuous import ContinuousVariable
 
 
 class ProbabilityBoxes:
@@ -30,20 +29,20 @@ class ProbabilityBoxes:
             track_conv_off- if convergence tracking is off
             epist_samps- the number of epistemic samples
             aleat_samps- the number of aleatory samples
-            aleat_sub_size- the number of aleatory samples for a sub iteration 
+            aleat_sub_size- the number of aleatory samples for a sub iteration
             when convergence tracking is used
-            epist_sub_size- the number of epistemic samples for a sub iteration 
+            epist_sub_size- the number of epistemic samples for a sub iteration
             when convergence tracking is used
-    
-    The probability box (pbox) plots that show the confidence interval from 
+
+    The probability box (pbox) plots that show the confidence interval from
     the data.
     """
     __slots__ = (
         'var_list_symb', 'var_list', 'var_count',
-        'epist_var_count', 'aleat_var_count', 'input', 'verbose', 'plot', 
-        'track_conv_off', 'epist_samps', 'aleat_samps', 'total_samps', 
-        'eval_resps', 'matrix_coeffs', 'var_basis_resamp', 'aleat_sub_size', 
-        'epist_sub_size', 'mean_uncert', 'rank', 'size', 'aleat_resample', 
+        'epist_var_count', 'aleat_var_count', 'input', 'verbose', 'plot',
+        'track_conv_off', 'epist_samps', 'aleat_samps', 'total_samps',
+        'eval_resps', 'matrix_coeffs', 'var_basis_resamp', 'aleat_sub_size',
+        'epist_sub_size', 'mean_uncert', 'rank', 'size', 'aleat_resample',
         'epist_resample', 'aleat_list_symb', 'epist_list_symb'
     )
 
@@ -102,7 +101,7 @@ class ProbabilityBoxes:
                 self.epist_list_symb.append(self.var_list_symb[i])
             else:
                 self.aleat_list_symb.append(self.var_list_symb[i])
-    
+
         self.aleat_var_count = len(self.var_list) - self.epist_var_count
 
     def _generate_aleatory_samples(self):
@@ -113,7 +112,7 @@ class ProbabilityBoxes:
             # Still create the attribute with 0 columns for consistency
             self.aleat_resample = np.zeros([self.aleat_samps, 0])
             return
-        
+
         if self.rank == 0 and self.verbose:
             print('Generating aleatory resampling values\n')
 
@@ -132,12 +131,12 @@ class ProbabilityBoxes:
 
     def _generate_epistemic_samples(self):
         """
-        Determines the number of samples needed and generates the resample 
+        Determines the number of samples needed and generates the resample
         values for epistemic variables.
         """
         if self.epist_var_count == 0:
             return
-        
+
         if self.rank == 0 and self.verbose:
             print('Generating epistemic resampling values\n')
 
@@ -146,7 +145,7 @@ class ProbabilityBoxes:
 
         for i in range(self.var_count):
             curr_var = self.var_list[i]
-            
+
             if curr_var.type is UncertaintyType.EPISTEMIC:
                 self.epist_resample[:,i-decr] = curr_var.resample(
                     self.epist_samps
@@ -206,7 +205,7 @@ class ProbabilityBoxes:
             end_var_idx = (ep+1) * self.aleat_samps
 
             new_eq = var_basis_vect_symb.subs(
-                {self.epist_list_symb[e]:self.epist_resample[ep,e] for e in 
+                {self.epist_list_symb[e]:self.epist_resample[ep,e] for e in
                 range(self.epist_var_count)}
             )
             var_basis_vect_func = lambdify(
@@ -256,7 +255,7 @@ class ProbabilityBoxes:
                 cils[2,:] = np.quantile(
                     self.eval_resps, low_bnd, axis=0
                 ).reshape(1,-1)
-                
+
                 cihs[0,:] = np.quantile(
                     self.eval_resps[:-2*cnt,:], high_bnd, axis=0
                 ).reshape(1,-1)
@@ -269,7 +268,7 @@ class ProbabilityBoxes:
 
         if not self.track_conv_off:
             converged = (
-                (np.abs(np.diff(cils, axis=0)) < thresh).all(axis=0) 
+                (np.abs(np.diff(cils, axis=0)) < thresh).all(axis=0)
                 * (np.abs(np.diff(cihs, axis=0)) < thresh).all(axis=0)
             )
             for i in range(mod_cnt):
@@ -286,7 +285,7 @@ class ProbabilityBoxes:
         Inputs: eval_resps- the evaluated responses from the pbox curves
                 sig- the significance
                 graph_dir- the name of the graph directory
-        
+
         Generates the pbox plots from the eval_resps.
         """
         model_cnt = eval_resps.shape[1]
@@ -297,7 +296,7 @@ class ProbabilityBoxes:
         else:
             conf_int_low = np.ones([self.epist_samps, model_cnt]) * np.inf
             conf_int_high = np.ones([self.epist_samps, model_cnt]) * -np.inf
-        
+
         qs = [sig/2, 1-sig/2]
 
         for i in range(self.epist_samps):
@@ -343,8 +342,8 @@ class ProbabilityBoxes:
         Inputs: var_basis_sys_eval- the evaluated variable basis
                 responses- the matrix of responses
                 signif- the level of significance of the model
-        
-        Calculates the confidence interval for each point in the 
+
+        Calculates the confidence interval for each point in the
         ProbabilityBoxes.
         """
 

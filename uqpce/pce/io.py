@@ -1,31 +1,22 @@
-from builtins import setattr, getattr, FileNotFoundError
 import os
+from builtins import getattr
 
 import numpy as np
-from yaml import Loader
 import yaml
+from yaml import Loader
 
 try:
-    from mpi4py.MPI import DOUBLE as MPI_DOUBLE, COMM_WORLD as MPI_COMM_WORLD
+    from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
     comm = MPI_COMM_WORLD
     rank = comm.rank
     size = comm.size
     is_manager = (rank == 0)
-except:
+except (ImportError, Exception):
     comm = None
     rank = 0
     size = 1
     is_manager = True
 
-from uqpce.pce.enums import Distribution
-from uqpce.pce.variables.continuous import (
-    BetaVariable, ExponentialVariable, GammaVariable, NormalVariable,
-    UniformVariable, ContinuousVariable
-)
-from uqpce.pce.variables.discrete import (
-    UniformVariable as DiscUniformVariable, DiscreteVariable, NegativeBinomialVariable,
-    PoissonVariable, HypergeometricVariable
-)
 from uqpce.pce._helpers import warn
 
 
@@ -36,7 +27,7 @@ def write_sobols(file_name, str_vars, sobols, sobol_str, bounds):
             sobols- the sobol values
             sobol_str- the string that contains the total Sobols
             bounds- the Sobol bounds
-    
+
     Writes all of the relevant Sobol information into an output file.
     """
     sob_count = len(sobols)
@@ -65,7 +56,7 @@ def write_coeffs(file_name, matrix_coeffs, str_vars, uncert):
             matrix_coeffs- the matrix coefficient values
             str_vars- a list of the variable numbers of type string
             uncert- the coefficient uncertainty
-    
+
     Writes all of the relevant coefficient information into an output file.
     """
     coeff_count = len(matrix_coeffs)
@@ -108,7 +99,7 @@ def write_outputs(
             conf_int_str- the confidence interval string
             in_file- all of the text from the input file
             arg_opts- the names of the settings
-    
+
     Writes all of the information about the execution to an output file.
     """
     dashed_line = '-' * 80 + '\n\n'
@@ -145,9 +136,9 @@ def write_outputs(
 
 def read_input_file(input_file):
     """
-    Inputs: input_file- the name of the input file to read Variables and 
+    Inputs: input_file- the name of the input file to read Variables and
             Settings from
-    
+
     Reads the input yaml file and separates the variables and settings.
     """
     with open(input_file, 'r') as fi:
@@ -166,11 +157,11 @@ def read_input_file(input_file):
 
 class DataSet:
     """
-    Inputs: verbose- if the DataSet object should print messages during 
+    Inputs: verbose- if the DataSet object should print messages during
             execution
-    
-    Reads in, creates, and sets up the variables from the input file. 
-    Reads from the matrix file to set the 'vals' (or 'verify_vals') of each 
+
+    Reads in, creates, and sets up the variables from the input file.
+    Reads from the matrix file to set the 'vals' (or 'verify_vals') of each
     variable.
     """
 
@@ -179,12 +170,12 @@ class DataSet:
 
     def check_settings(self, input_file, arg_options, args):
         """
-        Inputs: input_file- the input (.yaml) file containing the Variable and 
+        Inputs: input_file- the input (.yaml) file containing the Variable and
                 Settings (optional) information
                 arg_options- the names of the available command-line arguments
                 args- the command-line arguments
-        
-        Removes the Settings from the input file, warns users if an argument 
+
+        Removes the Settings from the input file, warns users if an argument
         used isn't valid, and checks the backend in the environment varaibles.
         """
         var_dict, settings = read_input_file(input_file)
@@ -240,7 +231,7 @@ def write_gen_resps(results, file_name='results_generated.dat'):
     """
     Inputs: results- the array of generated results
             file_name- the name of the output results file
-    
+
     Writes the results array to a file in the UQPCE format.
     """
     with open(file_name, 'w') as res_gen:

@@ -1,12 +1,12 @@
-from datetime import datetime
 import os
+from datetime import datetime
 
 try:
     from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
     comm = MPI_COMM_WORLD
     rank = comm.rank
     is_manager = (rank == 0)
-except:
+except (ImportError, Exception):
     comm = None
     rank = 0
     is_manager = True
@@ -25,7 +25,7 @@ class Report():
         Inputs: report_name- the title of the report
                 body- the body of the text to write
                 report_file- the output file for the text to be written to
-        
+
         Writes the report LaTeX file.
         """
 
@@ -49,10 +49,10 @@ class Report():
         """
         Inputs: name- the name of the statistic (ex. 'R squared')
                 value- the value of the statistic
-                thresh_value- the minimum/maximum value that the statistic 
+                thresh_value- the minimum/maximum value that the statistic
                 should have
-        
-        Adds the statistic 'name' to the string that will be written to the 
+
+        Adds the statistic 'name' to the string that will be written to the
         file.
         """
         if is_manager:
@@ -64,20 +64,20 @@ class Report():
     def add_text(self, text):
         """
         Inputs: text- the text to be added to the .tex file
-        
+
         Adds 'text' to the string that will be written to the file.
         """
         self.body = ''.join((self.body, text, '\n\n'))
 
     def add_plot(self, figure_path, width=8, caption=''):
         """
-        Inputs: figure_path- the path(s) from the current working directory to 
+        Inputs: figure_path- the path(s) from the current working directory to
                 the figure that the user wants to include in the report
                 width- the width of the figure in the report (default: 8cm)
-                caption- the caption to write with the figure; if no caption is 
+                caption- the caption to write with the figure; if no caption is
                 given, the figure_path will be written as the caption
-        
-        Adds a figure for the given figure path to the string that will be 
+
+        Adds a figure for the given figure path to the string that will be
         written to the file.
         """
         if is_manager:
@@ -127,7 +127,7 @@ class Report():
 
 class UQPCEReport(Report):
     """
-    Report class that writes all of the stats that appear less than ideal  to 
+    Report class that writes all of the stats that appear less than ideal  to
     a file.
     """
 
@@ -138,7 +138,7 @@ class UQPCEReport(Report):
     def write(self, directory=None):
         """
         Inputs: directory- the directory in which to place the files (optional)
-        
+
         Writes the UQPCE report LaTeX file.
         """
         report_file = 'uqpce_report.tex'

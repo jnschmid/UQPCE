@@ -1,22 +1,23 @@
-from builtins import getattr
 import os
 import sys
 import warnings
+from builtins import getattr
 
-from numpy.linalg import inv, pinv, cond, solve
-from scipy.stats import pearsonr
-from sympy import symbols
-from sympy.utilities.lambdify import lambdify
-from sympy.parsing.sympy_parser import parse_expr
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.linalg import cond, solve
+from scipy.stats import pearsonr
+from sympy import symbols
+from sympy.parsing.sympy_parser import parse_expr
+from sympy.utilities.lambdify import lambdify
+
 try:
-    from mpi4py.MPI import DOUBLE as MPI_DOUBLE, COMM_WORLD as MPI_COMM_WORLD, SUM as MPI_SUM
+    from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
     comm = MPI_COMM_WORLD
     rank = comm.rank
     size = comm.size
     is_manager = (rank == 0)
-except:
+except (ImportError, Exception):
     comm = None
     rank = 0
     size = 1
