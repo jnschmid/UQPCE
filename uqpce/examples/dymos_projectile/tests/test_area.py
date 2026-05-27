@@ -2,11 +2,12 @@ import unittest
 
 import numpy as np
 import openmdao.api as om
+from openmdao.utils.assert_utils import assert_check_partials
 
 from uqpce.examples.dymos_projectile.area import Area
 
 
-class TestCost(unittest.TestCase):
+class TestArea(unittest.TestCase):
     def setUp(self):
         prob = om.Problem(reports=None)
         prob.model.add_subsystem(
@@ -21,11 +22,7 @@ class TestCost(unittest.TestCase):
         self.prob = prob
 
     def test_partials(self):
-        partial_m = self.partials['area'][('A', 'm')]['rel error'][0]
-
-        self.assertTrue(
-            np.isclose(partial_m, 0), msg="Partial of area wrt m error."
-        )
+        assert_check_partials(self.partials, atol=1e-6, rtol=1e-6)
 
     def test_compute(self):
         area = self.prob.get_val('A')

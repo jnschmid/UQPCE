@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 import openmdao.api as om
+from openmdao.utils.assert_utils import assert_check_partials
 
 from uqpce.examples.dymos_projectile.cost import Cost
 
@@ -24,15 +25,7 @@ class TestCost(unittest.TestCase):
         self.prob = prob
 
     def test_partials(self):
-        partial_v = self.partials['cost'][('cost', 'v')]['rel error'][0]
-        partial_m = self.partials['cost'][('cost', 'm')]['rel error'][0]
-
-        self.assertTrue(
-            np.isclose(partial_v, 0), msg="Partial of cost wrt v error."
-        )
-        self.assertTrue(
-            np.isclose(partial_m, 0), msg="Partial of cost wrt m error."
-        )
+        assert_check_partials(self.partials, atol=1e-6, rtol=1e-6)
 
     def test_compute(self):
         ke = self.prob.get_val('cost')

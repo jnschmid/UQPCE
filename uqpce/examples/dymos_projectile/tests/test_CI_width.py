@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 import openmdao.api as om
+from openmdao.utils.assert_utils import assert_check_partials
 
 from uqpce.examples.dymos_projectile.widthCI import WidthCI
 
@@ -22,15 +23,7 @@ class TestCost(unittest.TestCase):
         self.prob = prob
 
     def test_partials(self):
-        partial_lb = self.partials['dist'][('width', 'x_out:ci_lower')]['rel error'][0]
-        partial_ub = self.partials['dist'][('width', 'x_out:ci_upper')]['rel error'][0]
-
-        self.assertTrue(
-            np.isclose(partial_lb, 0), msg="Partial of width wrt CI_lower error."
-        )
-        self.assertTrue(
-            np.isclose(partial_ub, 0), msg="Partial of width wrt CI_upper error."
-        )
+        assert_check_partials(self.partials, atol=1e-6, rtol=1e-6)
 
     def test_compute(self):
         ub = self.prob.get_val('x_out:ci_upper')

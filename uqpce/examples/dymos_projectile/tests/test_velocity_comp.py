@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 import openmdao.api as om
-import openmdao.utils.assert_utils as om_assert
+from openmdao.utils.assert_utils import assert_check_partials
 
 from uqpce.examples.dymos_projectile.v_comp import V_Comp
 
@@ -40,8 +40,7 @@ class TestCost(unittest.TestCase):
         self.prob = prob
 
     def test_partials(self):
-        partials = self.partials
-        om_assert.assert_check_partials(partials, atol=1e-6, rtol=1e-6)
+        assert_check_partials(self.partials, atol=1e-6, rtol=1e-6)
 
     def test_compute(self):
         vx = self.prob.get_val('vx').tolist()

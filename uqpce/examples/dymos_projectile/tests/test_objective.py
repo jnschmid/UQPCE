@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 import openmdao.api as om
+from openmdao.utils.assert_utils import assert_check_partials
 
 from uqpce.examples.dymos_projectile.obj import Obj
 
@@ -24,11 +25,7 @@ class TestCost(unittest.TestCase):
         self.prob = prob
 
     def test_partials(self):
-        partial_mu = self.partials['obj_comp'][('obj', 'x_out:mean')]['rel error'][0]
-
-        self.assertTrue(
-            np.isclose(partial_mu, 0), msg="Partial of obj wrt mean error."
-        )
+        assert_check_partials(self.partials, atol=1e-6, rtol=1e-6)
 
     def test_compute(self):
         calc = (150 - self.prob.get_val('x_out:mean')) ** 2
