@@ -85,11 +85,6 @@ class SobolComp(om.ExplicitComponent):
         norm_sq = self.options['norm_sq']
         model_matrix = self.options['model_matrix']
 
-        # Handle complex step: UQPCE functions don't support complex,
-        # but Sobols are real-valued functions of real coefficients
-        if np.iscomplexobj(matrix_coeffs):
-            matrix_coeffs = matrix_coeffs.real
-
         # Compute individual Sobols using existing tested UQPCE function
         sobols = calc_sobols(matrix_coeffs, norm_sq)
         outputs['sobols'] = sobols
@@ -182,3 +177,27 @@ class SobolComp(om.ExplicitComponent):
                     jac_total[var_idx, :] += jac_sobols[term_idx-1, :]
 
         partials['total_sobols', 'matrix_coeffs'] = jac_total
+
+
+if __name__ == '__main__':
+    import numpy as np
+
+    prob = om.Problem()
+    norm_sq = np.array([[1.0], [1.0], [1.0], [1.0]])
+    model_matrix = np.array([
+        [0, 0],
+        [1, 0],
+        [0, 1],
+        [1, 1],
+    ])
+    matrix_coeffs = np.array([1.0, 0.5, 0.3, 0.2])
+    prob.model.add_subsystem(
+        'comp', SobolComp(model_matrix=model_matrix, norm_sq=norm_sq),
+        promotes_inputs=['matrix_coeffs'], promotes_outputs=['*']
+    )
+
+    prob.setup(force_alloc_complex=True)
+    prob.set_val('matrix_coeffs', matrix_coeffs)
+
+    prob.run_model()
+    prob.check_partials(compact_print=True, method='cs')
