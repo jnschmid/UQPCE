@@ -15,7 +15,7 @@ on:
 jobs:
 
   docs_ubuntu:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     timeout-minutes: 90
 
@@ -43,7 +43,7 @@ jobs:
             NUMPY: '2.4'
             SCIPY: '1.17'
             PYYAML: '6.0.3'
-            JAX: '0.9'
+            JAX: '0.9.0'
             OPENMDAO: 'latest'
             DYMOS: 'latest'
             MPI4PY: '4.1'
