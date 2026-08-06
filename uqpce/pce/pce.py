@@ -1,8 +1,11 @@
-import sys
-import os
 import copy
-from datetime import datetime
+import os
 import pickle
+import sys
+import time
+from datetime import datetime
+
+from scipy.stats.qmc import LatinHypercube
 
 try:
     from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
@@ -19,25 +22,54 @@ except:
 import matplotlib.pyplot as plt
 import numpy as np
 
-from uqpce.pce.variables.variable import Variable
+from uqpce.pce._helpers import (
+    calc_mean_err,
+    check_directory,
+    create_total_sobols,
+    get_str_vars,
+    term_count,
+    user_function,
+)
+from uqpce.pce.enums import Distribution, UncertaintyType
+from uqpce.pce.error import DimensionError
+from uqpce.pce.graphs import Graphs
+from uqpce.pce.io import read_input_file, write_coeffs, write_outputs, write_sobols
+from uqpce.pce.model import MatrixSystem, SurrogateModel
+from uqpce.pce.pbox import ProbabilityBoxes
+from uqpce.pce.stats.model import backward_elimination, find_lower_terms
+from uqpce.pce.stats.statistics import (
+    calc_coeff_conf_int,
+    calc_mean_conf_int,
+    calc_R_sq,
+    calc_R_sq_adj,
+    calc_var_conf_int,
+    get_sobol_bounds,
+)
 from uqpce.pce.variables.continuous import (
-    NormalVariable, UniformVariable, BetaVariable, ExponentialVariable, 
-    GammaVariable, LognormalVariable, EpistemicVariable, GaussianMixtureVariable
+    BetaVariable,
+    ContinuousVariable,
+    EpistemicVariable,
+    ExponentialVariable,
+    GammaVariable,
+    GaussianMixtureVariable,
+    LognormalVariable,
+    NormalVariable,
+    UniformVariable,
 )
 from uqpce.pce.variables.discrete import (
-    DiscreteVariable, PoissonVariable, NegativeBinomialVariable, 
-    HypergeometricVariable, UniformVariable as DiscUniformVariable, 
-    EpistemicVariable as DiscEpistemicVariable
+    DiscreteVariable,
+    HypergeometricVariable,
+    NegativeBinomialVariable,
+    PoissonVariable,
 )
-from uqpce.pce._helpers import check_directory, term_count
-from uqpce.pce.stats.statistics import (
-    calc_coeff_conf_int, get_sobol_bounds, calc_var_conf_int, calc_R_sq, 
-    calc_R_sq_adj
-)
+from uqpce.pce.variables.discrete import EpistemicVariable as DiscreteEpistemicVariable
+from uqpce.pce.variables.discrete import UniformVariable as DiscUniformVariable
+from uqpce.pce.variables.variable import Variable
+
 
 class PCE():
     """
-    The Polynomial Chaos Exapansion (PCE) model class. This class is intended to 
+    The Polynomial Chaos Exapansion (PCE) model class. This class is intended to
     be an interface for programmers.
 
     Parameters
@@ -50,59 +82,59 @@ class PCE():
         matrix_file :
             file containing matrix elements
         results_file  :
-            file containing results 
-        verification_results_file : 
+            file containing results
+        verification_results_file :
             file containing verification results
-        verification_matrix_file : 
+        verification_matrix_file :
             file containing verification matrix elements
-        output_directory : 
+        output_directory :
             directory that the outputs will be put in
-        case : 
+        case :
             case name of input data
-        significance : 
+        significance :
             significance level of the confidence interval
-        order : 
+        order :
             order of polynomial chaos expansion
-        over_samp_ratio : 
-            over sampling ratio; factor for how many points to be used in 
+        over_samp_ratio :
+            over sampling ratio; factor for how many points to be used in
             calculations
-        verify_over_samp_ratio : 
-            over sampling ratio for verification; factor for how many points to be 
+        verify_over_samp_ratio :
+            over sampling ratio for verification; factor for how many points to be
             used in calculations
-        aleat_sub_samp_size : 
-            the number of samples to check the new high and low intervals at for 
+        aleat_sub_samp_size :
+            the number of samples to check the new high and low intervals at for
             each individual curve
-        epist_sub_samp_size : 
-            the number of curves to check the new high and low intervals at for a 
+        epist_sub_samp_size :
+            the number of curves to check the new high and low intervals at for a
             set of curves
-        conv_threshold_percent : 
-            the percent of the response mean to be used as a threshold for tracking 
+        conv_threshold_percent :
+            the percent of the response mean to be used as a threshold for tracking
             convergence
-        epist_samp_size : 
-            the number of times to sample for each variable with epistemic 
+        epist_samp_size :
+            the number of times to sample for each variable with epistemic
             uncertainty
-        aleat_samp_size : 
-            the number of times to sample for each variable with aleatory 
+        aleat_samp_size :
+            the number of times to sample for each variable with aleatory
             uncertainty
-        version : 
+        version :
             displays the version of the software
-        verbose : 
+        verbose :
             increase output verbosity
-        verify : 
+        verify :
             allows verification of results
-        plot : 
+        plot :
             generates factor vs response plots, pbox plot, and error plots
-        plot_stand : 
+        plot_stand :
             plots standardized variables
-        track_convergence_off : 
-            allows users to converge on confidence interval until the change between 
+        track_convergence_off :
+            allows users to converge on confidence interval until the change between
             the two iters is less than the threshold
-        model_conf_int : 
+        model_conf_int :
             includes uncertainties associated with the model itself
-        stats : 
-            perform additional statistics for a more-comprehensive profile 
+        stats :
+            perform additional statistics for a more-comprehensive profile
             of the model
-        seed : 
+        seed :
             if UQPCE should use a seed for random values
     """
 
@@ -180,7 +212,7 @@ class PCE():
 
         Parameters
         ----------
-        kwargs : 
+        kwargs :
             The key-value pairs for the keyword arguments to update for the
             PCE model
         """
@@ -195,7 +227,7 @@ class PCE():
 
     def _build_directory(self, output_directory: str, graph_directory: str):
         """
-        A method to check if a directory exists, increment it if it does, and 
+        A method to check if a directory exists, increment it if it does, and
         create the directory structure for the outputs.
         """
         output_directory = check_directory(
@@ -216,12 +248,12 @@ class PCE():
 
     def _add_variable(self, variable: Variable) -> None:
         """
-        Method to add a variable to the model and increment the PCE object's 
+        Method to add a variable to the model and increment the PCE object's
         variable count.
 
         Parameters
         ----------
-        variable : 
+        variable :
             A Variable object to add to the model
         """
         if self.verbose:
@@ -234,23 +266,13 @@ class PCE():
     def add_variable(self, **kwargs) -> None:
         """
         Adds a variable with kwargs to the PCE object.
-        
+
         Parameters
         ----------
-        kwargs : 
-            The input arguments required for the variable being added and the 
+        kwargs :
+            The input arguments required for the variable being added and the
             name of the distribution being added.
         """
-        from uqpce.pce.enums import Distribution, UncertaintyType
-        from uqpce.pce.variables.continuous import (
-            BetaVariable, ExponentialVariable, GammaVariable, NormalVariable,
-            UniformVariable, ContinuousVariable, EpistemicVariable
-        )
-        from uqpce.pce.variables.discrete import (
-            UniformVariable as DiscUniformVariable, DiscreteVariable,
-            NegativeBinomialVariable, PoissonVariable, HypergeometricVariable, 
-            EpistemicVariable as DiscreteEpistemicVariable
-        )
 
         distribution = kwargs.pop('distribution')
 
@@ -278,9 +300,9 @@ class PCE():
                     f'Key word arguments `{req_1}` and `{req_2}` are required '
                     f'inputs for the {distribution} variable.', file=sys.stderr
                 )
-            
+
             var = NormalVariable(
-                mean=mean, stdev=stdev, number=self._var_count, order=curr_order, 
+                mean=mean, stdev=stdev, number=self._var_count, order=curr_order,
                 **kwargs
             )
 
@@ -297,7 +319,7 @@ class PCE():
                         f'inputs for the {distribution} variable.', file=sys.stderr
                     )
                 var = UniformVariable(
-                    interval_low, interval_high, number=self._var_count, 
+                    interval_low, interval_high, number=self._var_count,
                     order=curr_order, **kwargs
                 )
 
@@ -313,9 +335,9 @@ class PCE():
                         f'inputs for the {distribution} variable.', file=sys.stderr
                     )
                 var = EpistemicVariable(
-                    interval_low, interval_high, number=self._var_count, 
+                    interval_low, interval_high, number=self._var_count,
                     order=curr_order, **kwargs
-                )            
+                )
 
         elif dist is Distribution.BETA:
             req_1 = 'alpha'
@@ -386,11 +408,11 @@ class PCE():
             except:
                 print(
                     f'Key word arguments `{req_1}`, `{req_2}`, and `{req_3}` '
-                    f'are required inputs for the user-input continuous variable.', 
+                    f'are required inputs for the user-input continuous variable.',
                     file=sys.stderr
                 )
             var = ContinuousVariable(
-                pdf, interval_low, interval_high, number=self._var_count, 
+                pdf, interval_low, interval_high, number=self._var_count,
                 order=curr_order, **kwargs
             )
 
@@ -407,7 +429,7 @@ class PCE():
                         f'inputs for the {distribution} variable.', file=sys.stderr
                     )
                 var = DiscUniformVariable(
-                    interval_low, interval_high, number=self._var_count, 
+                    interval_low, interval_high, number=self._var_count,
                     order=curr_order, **kwargs
                 )
             if type_exists and unc_type is UncertaintyType.EPISTEMIC:
@@ -422,7 +444,7 @@ class PCE():
                         f'inputs for the {distribution} variable.', file=sys.stderr
                     )
                 var = DiscreteEpistemicVariable(
-                    interval_low, interval_high, number=self._var_count, 
+                    interval_low, interval_high, number=self._var_count,
                     order=curr_order, **kwargs
                 )
 
@@ -465,7 +487,7 @@ class PCE():
             except:
                 print(
                     f'Key word arguments `{req_1}`, `{req_2}`, and {req_3} are '
-                    f'required inputs for the {distribution} variable.', 
+                    f'required inputs for the {distribution} variable.',
                     file=sys.stderr
                 )
             var = HypergeometricVariable(
@@ -483,11 +505,11 @@ class PCE():
             except:
                 print(
                     f'Key word arguments `{req_1}`, `{req_2}`, and `{req_3}` '
-                    f'are required inputs for the user-input discrete variable.', 
+                    f'are required inputs for the user-input discrete variable.',
                     file=sys.stderr
                 )
             var = DiscreteVariable(
-                pdf, interval_low, interval_high, number=self._var_count, 
+                pdf, interval_low, interval_high, number=self._var_count,
                 order=curr_order, **kwargs
             )
 
@@ -504,9 +526,9 @@ class PCE():
                     f'Key word arguments `{req_1}`, `{req_2}`, and `{req_3}` are '
                     f'required inputs for the {distribution} variable.', file=sys.stderr
                 )
-            
+
             var = GaussianMixtureVariable(
-                weights, means, stdevs, number=self._var_count, order=curr_order, 
+                weights, means, stdevs, number=self._var_count, order=curr_order,
                 **kwargs
             )
 
@@ -515,15 +537,14 @@ class PCE():
 
     def from_yaml(self, input_file: str) -> dict:
         """
-        Update the PCE object from the UQPCE YAML file. Adds the variables to 
+        Update the PCE object from the UQPCE YAML file. Adds the variables to
         the object and updates the settings.
 
         Parameters
         ----------
-        input_file : 
+        input_file :
             A string for the file name of the input yaml file
         """
-        from uqpce.pce.io import read_input_file
         var_dict, settings_dict = read_input_file(input_file)
         self.input_file = input_file
 
@@ -541,7 +562,7 @@ class PCE():
 
         Parameters
         ----------
-        filename : 
+        filename :
             A string for the file name of the run matrix file
         """
         return np.loadtxt(filename, ndmin=2)
@@ -561,8 +582,8 @@ class PCE():
 
     def build_basis(self, order: int) -> None:
         """
-        Builds the variable basis and norm squared for the model. This sets up 
-        the variable- and order- based information for the model that is 
+        Builds the variable basis and norm squared for the model. This sets up
+        the variable- and order- based information for the model that is
         independent of the response samples.
 
         Parameters
@@ -570,8 +591,6 @@ class PCE():
         order :
             An int for the order of the model to build
         """
-        from uqpce.pce.model import MatrixSystem
-
         if not hasattr(self, '_y'):
             terms = term_count(self._var_count, order) + 1
             self._y = np.zeros(terms)
@@ -591,7 +610,7 @@ class PCE():
         self._matrix.build()
         if self._is_manager and self.verbose:
             print('Psi matrix assembled\n')
-            
+
         if self._is_manager and self.verbose:
             print('Evaluating psi matrix\n')
         self._matrix.evaluate(self._X_stand)
@@ -606,10 +625,6 @@ class PCE():
         self.matrix_coeffs = np.copy(self._matrix.matrix_coeffs)
 
     def _build_model(self) -> None:
-
-        from uqpce.pce.model import SurrogateModel
-        from uqpce.pce._helpers import calc_mean_err
-
         self._model = SurrogateModel(
             self._y, self._matrix.matrix_coeffs, verbose=self.verbose
         )
@@ -638,7 +653,7 @@ class PCE():
         self._err_mean = calc_mean_err(self._error)
         self._signal_to_noise = self._sigma_sq / self._err_mean
         self._mean_sq_error, hat_matrix, self._shapiro = self._model.check_normality(
-            self._matrix.var_basis_sys_eval, self.significance, 
+            self._matrix.var_basis_sys_eval, self.significance,
             self.graph_directory, sigfigs=self.sigfigs, plot=self.plot
         )
 
@@ -648,12 +663,12 @@ class PCE():
         if self.model_conf_int:
             self._coeff_uncert = (
                 calc_coeff_conf_int(
-                    self._matrix.var_basis_sys_eval, self._matrix.matrix_coeffs, 
+                    self._matrix.var_basis_sys_eval, self._matrix.matrix_coeffs,
                     self._y, self.significance
                 )
             )
             self._sigma_sq_low, self._sigma_sq_high = calc_var_conf_int(
-                self._matrix.matrix_coeffs, self._coeff_uncert, 
+                self._matrix.matrix_coeffs, self._coeff_uncert,
                 self._matrix.norm_sq
             )
 
@@ -673,11 +688,11 @@ class PCE():
         Parameters
         ----------
         X :
-            An m-by-n matrix with the first dimension having the number of 
-            samples in the model (m) and the second having the number of 
+            An m-by-n matrix with the first dimension having the number of
+            samples in the model (m) and the second having the number of
             variables in the model (n).
         y :
-            The 2D numpy array of responses from the user's analytic tool. 
+            The 2D numpy array of responses from the user's analytic tool.
         """
         self.set_samples(X)
 
@@ -705,18 +720,18 @@ class PCE():
             else:
                 self.output_directory[0] = self._output_base_directory
                 self.graph_directory[0] = check_directory(
-                    os.path.join(self._output_base_directory, self._graph_base_directory), 
+                    os.path.join(self._output_base_directory, self._graph_base_directory),
                     verbose=self.verbose
             )
 
         X = np.atleast_2d(X)
         if X.shape[0] == 1: # only one uncertain variable
             X = X.T # transpose to ensure the responses are in correct dimension
-        
+
         # This can be expensive; ensure that this is only done once
         if not self._is_built:
             self._is_build = True
-        
+
         self._build_matrix(self.order)
         self._build_model()
 
@@ -746,7 +761,6 @@ class PCE():
             print(self._conf_int_str[i])
 
     def _figures(self, error:np.ndarray, pred:np.ndarray) -> None:
-        from uqpce.pce.graphs import Graphs
         if self.plot_stand:
             X = self._X_stand
         else:
@@ -759,8 +773,6 @@ class PCE():
             self._graph.error_vs_pred(self.graph_directory[i], error[:,i], pred[:,i], 'Error vs Predicted')
 
     def sobols(self) -> str:
-        from uqpce.pce._helpers import create_total_sobols
-
         self._sobols = self._model.get_sobols(self._matrix.norm_sq)
         tot_sobol = create_total_sobols(
             self._var_count, self._matrix.model_matrix, self._sobols
@@ -772,13 +784,13 @@ class PCE():
             unsc = 'Total Sobols\n'
             resc = 'Rescaled Total Sobols\n'
             for i in range(self._var_count):
-                var_name = self.variables[i].name 
+                var_name = self.variables[i].name
                 unsc = ''.join((
-                    unsc, 
+                    unsc,
                     f'   Total Sobol {var_name} = {tot_sobol[i, m]:.5}\n'
                 ))
                 resc = ''.join((
-                    resc, 
+                    resc,
                     f'   Total Sobol {var_name} = {tot_sobol[i, m]/sobol_sum[m]:.5}\n'
                 ))
 
@@ -786,7 +798,7 @@ class PCE():
 
         if self.model_conf_int:
             low_sobol, high_sobol = get_sobol_bounds(
-                self._matrix.matrix_coeffs, self._sobols, self._coeff_uncert, 
+                self._matrix.matrix_coeffs, self._sobols, self._coeff_uncert,
                 self._matrix.norm_sq
             )
 
@@ -800,12 +812,12 @@ class PCE():
 
         Parameters
         ----------
-        X : 
-            An m-by-n matrix with the first dimension having the number of 
-            samples in the model (m) and the second having the number of 
+        X :
+            An m-by-n matrix with the first dimension having the number of
+            samples in the model (m) and the second having the number of
             variables in the model (n).
-        return_uncert : 
-            Boolean for if the method should return the uncertainty associated 
+        return_uncert :
+            Boolean for if the method should return the uncertainty associated
             with the predicted responses.
 
         Returns
@@ -824,9 +836,8 @@ class PCE():
         )
 
         if return_uncert:
-            from uqpce.pce.stats.statistics import calc_mean_conf_int
             approx_mean, uncert_mean = calc_mean_conf_int(
-                self._matrix.var_basis_sys_eval, self._matrix.matrix_coeffs, 
+                self._matrix.var_basis_sys_eval, self._matrix.matrix_coeffs,
                 self._y, self.significance, var_basis_sys_eval_pred
             )
 
@@ -839,17 +850,17 @@ class PCE():
 
     def verification(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
         """
-        Predicts the response for the verification samples and compares the 
+        Predicts the response for the verification samples and compares the
         predicted responses to the user-provided verification response file.
 
         Parameters
         ----------
-        X : 
-            An m-by-n matrix with the first dimension having the number of 
-            samples in the model (m) and the second having the number of 
+        X :
+            An m-by-n matrix with the first dimension having the number of
+            samples in the model (m) and the second having the number of
             variables in the model (n).
 
-        y : 
+        y :
             The 2D numpy array of responses from the user's analytic tool.
 
         Returns
@@ -893,13 +904,13 @@ class PCE():
                 ax[0].legend()
 
                 plt.savefig(
-                    os.path.join(self.graph_directory[i], 'verify_err'), dpi=600, 
+                    os.path.join(self.graph_directory[i], 'verify_err'), dpi=600,
                     bbox_inches='tight'
                 )
                 plt.clf()
 
                 self._graph.factor_plots(
-                    self.graph_directory[i], self.variables, ver_error[:,i], X, 
+                    self.graph_directory[i], self.variables, ver_error[:,i], X,
                     'Verification Error', verify=True
                 )
 
@@ -910,18 +921,16 @@ class PCE():
 
     def verify_sample(self, count: int=-1, seed=None) -> np.ndarray:
         """
-        Sample the number of verification values according to the input count or 
+        Sample the number of verification values according to the input count or
         the set attribute `verify_over_samp_ratio`.
 
         Parameters
         ----------
         count :
-            The number of verification samples to generate. A value of `-1` 
-            creates a number of samples based on the attribute 
+            The number of verification samples to generate. A value of `-1`
+            creates a number of samples based on the attribute
             `verify_over_samp_ratio`.
         """
-        from uqpce.pce._helpers import term_count
-
         if count == -1:
             req_samps = term_count(self._var_count, self.order)
             count = int(np.ceil(self.verify_over_samp_ratio * req_samps))
@@ -935,18 +944,13 @@ class PCE():
         Parameters
         ----------
         count :
-            The number of samples to generate. A value of `-1` creates a number 
+            The number of samples to generate. A value of `-1` creates a number
             of samples based on the attribute `over_samp_ratio`.
         """
-        from scipy.stats.qmc import LatinHypercube
-        from uqpce.pce.variables.continuous import ContinuousVariable
-        from uqpce.pce.variables.discrete import DiscreteVariable
-        from uqpce.pce._helpers import term_count
-
         if count == -1:
             req_samps = term_count(self._var_count, self.order)
             count = int(np.ceil(self.over_samp_ratio * req_samps))
-            
+
         sampler = LatinHypercube(d=self._var_count, seed=seed)
         samps = sampler.random(n=count)
 
@@ -955,8 +959,8 @@ class PCE():
             vtype = type(var)
 
             if vtype is ContinuousVariable or vtype is DiscreteVariable:
-                # The continuous and discrete user-input variables do not 
-                # currently support reliable sampling from the cumulative 
+                # The continuous and discrete user-input variables do not
+                # currently support reliable sampling from the cumulative
                 # density functions (CDFs)
                 samps[:,vidx] = var.generate_samples(count)
             else:
@@ -969,8 +973,6 @@ class PCE():
         """
         Resamples the surrogate model.
         """
-        from uqpce.pce.pbox import ProbabilityBoxes
-
         if hasattr(self, '_model'):
             coeffs = self._model.matrix_coeffs
         else:
@@ -978,26 +980,26 @@ class PCE():
             coeffs = np.zeros([terms, 1])
 
         self._pbox = ProbabilityBoxes(
-            self.variables, verbose=self.verbose, plot=self.plot, 
-            track_conv_off=self.track_convergence_off, 
-            epist_samps=self.epist_samp_size, aleat_samps=self.aleat_samp_size, 
-            aleat_sub_size=self.aleat_sub_samp_size, 
+            self.variables, verbose=self.verbose, plot=self.plot,
+            track_conv_off=self.track_convergence_off,
+            epist_samps=self.epist_samp_size, aleat_samps=self.aleat_samp_size,
+            aleat_sub_size=self.aleat_sub_samp_size,
             epist_sub_size=self.epist_sub_samp_size
         )
 
         eval_resps, out_msg = self._pbox.evaluate_surrogate(
-            self._matrix.var_basis_vect_symb, self.significance, 
+            self._matrix.var_basis_vect_symb, self.significance,
             coeffs, self.conv_threshold_percent,
             graph_dir=self.graph_directory
         )
 
         self.resampled_var_basis = np.copy(self._pbox.var_basis_resamp)
-        
+
         return eval_resps
 
     def confidence_interval(self) -> tuple:
         """
-        Calls the ProbabilityBoxes class, resamples the model, and outputs the 
+        Calls the ProbabilityBoxes class, resamples the model, and outputs the
         confidence interval at the set significance level.
         """
         eval_resps = self.resample_surrogate()
@@ -1021,8 +1023,6 @@ class PCE():
         """
         Peforms backward elemination on the existing model.
         """
-        from uqpce.pce.stats.model import backward_elimination, find_lower_terms
-
         if self._is_manager and self.verbose:
             print('Performing backward elimination\n')
 
@@ -1042,18 +1042,15 @@ class PCE():
 
     def check_variables(self, X: np.ndarray) -> bool:
         """
-        Saves figures for all of the variables with their values plotted on 
-        them, if the data is available, which serves as a check if the user's 
+        Saves figures for all of the variables with their values plotted on
+        them, if the data is available, which serves as a check if the user's
         run matrix does not match their distributions well.
 
         Parameters
         ----------
         X :
-           The array of samples to check against the variable distributions 
+           The array of samples to check against the variable distributions
         """
-        from uqpce.pce.variables.continuous import ContinuousVariable
-        from uqpce.pce.variables.discrete import DiscreteVariable
-
         X = np.atleast_2d(X)
 
         for vidx in range(self._var_count):
@@ -1066,11 +1063,11 @@ class PCE():
                 plt.hist(X[:,vidx], density=True, label='Samples', bins=50)
 
                 if (
-                    (type(curr_var) is not ContinuousVariable) and 
+                    (type(curr_var) is not ContinuousVariable) and
                     (type(curr_var) is not DiscreteVariable)
                 ):
                     x = np.linspace(
-                        curr_var.bounds[0], 
+                        curr_var.bounds[0],
                         curr_var.bounds[1], num=1000
                     )
                     if type(curr_var) is ContinuousVariable or type(curr_var) is DiscreteVariable:
@@ -1085,8 +1082,8 @@ class PCE():
                         ]
                         disc_vars = [
                             DiscreteVariable, PoissonVariable, DiscUniformVariable,
-                            NegativeBinomialVariable, HypergeometricVariable, 
-                            DiscEpistemicVariable
+                            NegativeBinomialVariable, HypergeometricVariable,
+                            DiscreteEpistemicVariable
                         ]
                         if curr_type in cont_vars:
                             plt.plot(x, curr_var.dist.pdf(x), 'k-', label='Analytical PDF')
@@ -1099,7 +1096,7 @@ class PCE():
 
                 plt.legend()
                 plt.savefig(
-                    os.path.join(self._output_base_directory, f'{curr_var.name}').replace(':', '_'), 
+                    os.path.join(self._output_base_directory, f'{curr_var.name}').replace(':', '_'),
                     dpi=600, bbox_inches='tight'
                 )
                 plt.clf()
@@ -1110,8 +1107,6 @@ class PCE():
         """
         Provides statistics on the fit of the model.
         """
-        from uqpce.pce.stats.statistics import calc_R_sq, calc_R_sq_adj
-
         press_dict = self._matrix.get_press_stats()
         R_sq = calc_R_sq(
             self._matrix.var_basis_sys_eval, self._matrix.matrix_coeffs, self._y
@@ -1140,22 +1135,19 @@ class PCE():
 
     def generate_responses(self, X, equation: str) -> np.ndarray:
         """
-        For testing purposes; allows users to generate samples according to 
+        For testing purposes; allows users to generate samples according to
         an input function.
 
         Parameters
         ----------
-        X : 
-            An m-by-n matrix with the first dimension having the number of 
-            samples in the model (m) and the second having the number of 
+        X :
+            An m-by-n matrix with the first dimension having the number of
+            samples in the model (m) and the second having the number of
             variables in the model (n).
-        equation : 
-            A string represenation of the desired equation, using x0 for the 
+        equation :
+            A string represenation of the desired equation, using x0 for the
             first variable, x1 for the second, and so on.
         """
-        from uqpce.pce._helpers import user_function
-        from uqpce.pce.error import DimensionError
-
         shapex, shapey = X.shape
 
         if shapex <= shapey:
@@ -1173,13 +1165,13 @@ class PCE():
         """
         Pickles the entire PCE object.
         """
-        time = time.time()
+        t = time.time()
         try:
-            with open(f'uqpce_{time}.pickle', 'wb') as f:
+            with open(f'uqpce_{t}.pickle', 'wb') as f:
                 # Pickle the 'data' dictionary using the highest protocol available
                 pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
             return True
-        
+
         except:
             print('Failed to save PCE object', file=sys.stderr)
             return False
@@ -1187,12 +1179,9 @@ class PCE():
 
     def write_outputs(self) -> None:
         """
-        Writes all of the output files for all of the models associated with the 
+        Writes all of the output files for all of the models associated with the
         PCE object.
         """
-        from uqpce.pce.io import write_sobols, write_coeffs, write_outputs
-        from uqpce.pce._helpers import get_str_vars
-
         time_end = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
         time_end = datetime.strptime(time_end, '%Y-%m-%d %H:%M:%S.%f')
         time_total = time_end - self.time_start
@@ -1223,11 +1212,11 @@ class PCE():
             str_vars = get_str_vars(self._matrix.model_matrix)
 
             write_sobols(
-                os.path.join(self.output_directory[i], self.sobol_file), str_vars, 
+                os.path.join(self.output_directory[i], self.sobol_file), str_vars,
                 self._model.sobols[:,i], self._sobol_str[i], sobol_bounds
             )
             write_coeffs(
-                os.path.join(self.output_directory[i], self.coeff_file), 
+                os.path.join(self.output_directory[i], self.coeff_file),
                 self._matrix.matrix_coeffs[:,i], str_vars, coeff_uncert
             )
             write_outputs(os.path.join(self.output_directory[i], self.out_file), **kwargs)
@@ -1257,12 +1246,12 @@ if __name__ == '__main__':
 
     eq = '0.1*x0**2 + x0*x1 - 0.2*x1**2 + 3*x0 + 4*x1'
     settings = {
-        'order':2, 'verbose':True, 'plot':True, 'model_conf_int':False, 
+        'order':2, 'verbose':True, 'plot':True, 'model_conf_int':False,
         'stats':False, 'verify':False
     }
     var_dict = {
-        'Variable 0':{'distribution':'uniform', 'interval_low':6, 'interval_high':7, 'type':'aleatory'}, 
-        'Variable 1':{'distribution':'normal', 'mean':2, 'stdev':7}, 
+        'Variable 0':{'distribution':'uniform', 'interval_low':6, 'interval_high':7, 'type':'aleatory'},
+        'Variable 1':{'distribution':'normal', 'mean':2, 'stdev':7},
         'Variable 2':{'distribution':'continuous', 'pdf':'x', 'interval_low':0, 'interval_high':1}
     }
 
