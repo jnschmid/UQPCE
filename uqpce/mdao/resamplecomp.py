@@ -1,5 +1,6 @@
-import openmdao.api as om
 import numpy as np
+import openmdao.api as om
+
 
 class ResampleComp(om.ExplicitComponent):
     def initialize(self):
@@ -15,7 +16,7 @@ class ResampleComp(om.ExplicitComponent):
         self.add_output('resampled_responses', shape=(resamp_resp_cnt,))
 
         self.declare_partials(
-            of='resampled_responses', wrt='matrix_coeffs', 
+            of='resampled_responses', wrt='matrix_coeffs',
             val=resamp_var_basis
         )
 
@@ -39,7 +40,7 @@ if __name__ == '__main__':
             [ 1.00000000e+00, -7.19942644e-01, 4.53624248e-01,]
         ])
     prob.model.add_subsystem(
-        'comp', ResampleComp(resampled_var_basis=resampled_var_basis), 
+        'comp', ResampleComp(resampled_var_basis=resampled_var_basis),
         promotes_inputs=['*'], promotes_outputs=['*']
     )
 
