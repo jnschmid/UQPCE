@@ -1,5 +1,7 @@
 import jax.numpy as jnp
 import openmdao.api as om
+
+
 class EOM(om.JaxExplicitComponent):
     """
     Jax Explicit Component which computes the equations of motion used by Dymos
@@ -25,7 +27,7 @@ class EOM(om.JaxExplicitComponent):
         self.add_output('vx_dot', shape=(nn,), units='m/s**2', tags=['dymos.state_rate_source:vx', 'dymos.state_units:m/s'])
         self.add_output('vy_dot', shape=(nn,), units='m/s**2', tags=['dymos.state_rate_source:vy', 'dymos.state_units:m/s'])
         self.add_output('v', shape=(nn,), units='m/s')
-    
+
     def compute_primal(self, y, vx, vy, c_d, A, m, g, rho_0):
         theta = jnp.arctan2(vy, vx)
         rho = rho_0*jnp.exp(-y/8500)

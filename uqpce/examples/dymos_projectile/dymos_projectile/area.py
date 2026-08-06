@@ -1,5 +1,7 @@
 import numpy as np
 import openmdao.api as om
+
+
 class Area(om.ExplicitComponent):
     """
     OpenMDAO Explicit Component which computes surface area provided
@@ -16,7 +18,7 @@ class Area(om.ExplicitComponent):
         # Density = 9340 kg/m^3 for metal ball
         const = 3 / (4*np.pi*9340)
         m = inputs['m']
-        
+
         outputs['A'] = np.pi * (const * m)**(2/3)
 
     def compute_partials(self, inputs, partials):
