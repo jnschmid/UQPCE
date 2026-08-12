@@ -79,6 +79,11 @@ class UQPCEGroup(om.Group):
             'sample_ref', types=(int, float), default=1,
             desc='Reference scale for 1 of the sample data'
         )
+        # Robust design parameter
+        self.options.declare(
+            'variance_weight', types=(int, float), default=1, lower=0,
+            upper=None, desc='Reference scale for 1 of the sample data'
+        )
         self._coeff_comp = CoefficientsComp
 
     def _coeff_kwargs(self):
@@ -147,6 +152,7 @@ class UQPCEGroup(om.Group):
         epistemic_cnt = self.options['epistemic_cnt']
         vec_size = self.options['resampled_var_basis'].shape[0]
         norm_sq = self.options['norm_sq']
+        lmbd = self.options['variance_weight']
 
         if vec_size != aleatory_cnt and vec_size != (epistemic_cnt*aleatory_cnt):
             exit(
@@ -178,7 +184,7 @@ class UQPCEGroup(om.Group):
         )
 
         self.add_subsystem(
-            'mean_plus_var_comp', MeanPlusVarComp(),
+            'mean_plus_var_comp', MeanPlusVarComp(variance_weight=lmbd),
             promotes_inputs=['mean', 'variance'],
             promotes_outputs=['mean_plus_var']
         )
@@ -227,20 +233,6 @@ class MultiUQPCEGroup(UQPCEGroup):
             'uncert_list', allow_none=False,
             desc='The string names of the uncertain outputs for the user\'s problem.'
         )
-        self.options.declare('tanh_omega', types=(list, float, int), default=1e-6)
-        self.options.declare(
-            'sample_ref0', types=(list, int, float), default=0,
-            desc='Reference scale for 0 of the sample data'
-        )
-        self.options.declare(
-            'sample_ref', types=(list, int, float), default=1,
-            desc='Reference scale for 1 of the sample data'
-        )
-        self.options.declare(
-            'use_tanh_ci', types=bool, default=False,
-            desc='A flag for if the former complex-safe tanh method for '
-            'calculating the confidence interval should be used.'
-        )
 
     def _update_tanh_option(self, option, iter_cnt):
         """
@@ -274,6 +266,7 @@ class MultiUQPCEGroup(UQPCEGroup):
         tail = self.options['tail']
         compute_sobols = self.options['compute_sobols']
         use_tanh_ci = self.options['use_tanh_ci']
+        variance_weight = self.options['variance_weight']
 
         iter_cnt = len(uncert_list)
         tanh_omega = self._update_tanh_option(
@@ -310,7 +303,7 @@ class MultiUQPCEGroup(UQPCEGroup):
                     aleatory_cnt=aleat_cnt, epistemic_cnt=epist_cnt,
                     compute_sobols=compute_sobols, sample_ref0=sample_ref0[cnt],
                     sample_ref=sample_ref[cnt], tanh_omega=tanh_omega[cnt],
-                    use_tanh_ci=use_tanh_ci
+                    use_tanh_ci=use_tanh_ci, variance_weight=variance_weight
                 ),
                 promotes_inputs=[('responses', resp)], promotes_outputs=outputs
             )
@@ -354,7 +347,8 @@ if __name__ == '__main__':
         MultiUQPCEGroup(
             uncert_list=outputs, var_basis=var_basis, significance=sig,
             resampled_var_basis=resampled_var_basis, tail='both', norm_sq=norm_sq,
-            aleatory_cnt=aleat_cnt, epistemic_cnt=epist_cnt, use_tanh_ci=False
+            aleatory_cnt=aleat_cnt, epistemic_cnt=epist_cnt, use_tanh_ci=False,
+            variance_weight=0.1
         ),
         promotes_inputs=['*'], promotes_outputs=['*']
     )
@@ -369,6 +363,7 @@ if __name__ == '__main__':
 
     print(prob.get_val('f_abxy:variance'))
     print(prob.get_val('f_abxy:mean'))
+    print(prob.get_val('f_abxy:mean_plus_var'))
     print('UQPCE OM CI:     ', prob.get_val('f_abxy:ci_upper'))
     print('Interpolated CI: ', np.max(np.quantile(np.reshape(prob.get_val('f_abxy:resampled_responses'), (-1, aleat_cnt)), 1-sig/2, axis=1)))
     print('Interpolated All Epistemic CIs:', np.quantile(np.reshape(prob.get_val('f_abxy:resampled_responses'), (-1, aleat_cnt)), 1-sig/2, axis=1))

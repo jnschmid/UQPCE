@@ -1,7 +1,14 @@
-import openmdao.api as om
 import numpy as np
+import openmdao.api as om
+
 
 class MeanPlusVarComp(om.ExplicitComponent):
+
+    def initialize(self):
+        self.options.declare(
+            'variance_weight', types=(int, float), default=1, lower=0,
+            upper=None, desc='Reference scale for 1 of the sample data'
+        )
 
     def setup(self):
 
@@ -15,11 +22,10 @@ class MeanPlusVarComp(om.ExplicitComponent):
         self._no_check_partials = True
 
     def compute(self, inputs, outputs):
-
-        outputs['mean_plus_var'] = inputs['mean'] + inputs['variance']
+        lmbd = self.options['variance_weight']
+        outputs['mean_plus_var'] = inputs['mean'] + lmbd * inputs['variance']
 
 if __name__ == '__main__':
-    import numpy as np
 
     prob = om.Problem()
     prob.model.add_subsystem(
